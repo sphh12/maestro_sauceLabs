@@ -1,0 +1,107 @@
+appId: com.saucelabs.mydemo.app.ios
+tags:
+  - e2e
+  - ios
+---
+# ══════════════════════════════════════════════════════════════════
+#  한 사이클 E2E — SauceLabs My Demo App(iOS) 구매 완주
+#  담기 → 장바구니 → 체크아웃(로그인 게이트) → 배송 → 결제 → 리뷰 → 완료
+#
+#  ⚠️ iOS 키보드 이슈(중요):
+#   - 이 앱은 소프트키보드를 내리는 표준 동작(hideKeyboard/바깥탭/스크롤)이 전혀 없고,
+#     'To Payment'·'Review Order' 버튼이 키보드 뒤에 고정(pinned)되어 가려진다.
+#   - 헤드리스 시뮬레이터라 하드웨어 키보드 연결(ConnectHardwareKeyboard)도 적용되지 않음.
+#   - 해결: 백그라운드로 idb Escape(HID keycode 41)를 반복 전송해 키보드를 계속 내려둔다.
+#     → 반드시 run_checkout_ios.sh 로 실행(=idb Escape 루프 + 이 flow 동시 구동).
+#   - 텍스트 입력은 Maestro inputText 사용(깨끗함). idb ui text 는 한글 IME로 깨지므로 금지.
+#   - 입력란은 name 없는 TextField라 좌표(point)로 탭한다(키보드가 내려가 있어 좌표가 안정적).
+# ══════════════════════════════════════════════════════════════════
+
+# ── [단계 1] 상품을 장바구니에 담기 ────────────────────────────────
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "Product Image"                 # 카탈로그(Catalog) 도착 확인
+- tapOn:
+    id: "Product Image"                 # 첫 상품 → 상세(ProductDetails)
+    index: 0
+- assertVisible:
+    id: "AddToCart"
+- tapOn:
+    id: "AddToCart"                     # 장바구니 담기
+
+# ── [단계 2] 장바구니 화면 확인 ────────────────────────────────────
+- tapOn:
+    id: "Cart-tab-item"                 # 하단 Cart 탭으로 이동
+- assertVisible:
+    id: "Cart-screen"                   # My Cart 도착 확인
+
+# ── [단계 3] 체크아웃 진입 → 로그인 게이트 ─────────────────────────
+- tapOn:
+    id: "ProceedToCheckout"
+# 로그인하지 않았으므로 로그인 화면이 끼어든다(iOS는 저장 계정 버튼 방식)
+- assertVisible:
+    text: "bob@example.com"             # iOS 정상 계정(안드로이드 'bod' 오타와 다름)
+- tapOn:
+    text: "bob@example.com"             # 계정 버튼 탭 → 아이디/비번 자동완성(비번 10203040)
+    index: 0
+- tapOn:
+    text: "Login"                       # 헤더 'Login'과 겹쳐 있어 하단 버튼(index 1) 지정
+    index: 1
+
+# ── [단계 4] 배송 주소 입력 ────────────────────────────────────────
+# 로그인 후 배송 주소(ShippingAddress) 화면으로 진행됨
+- assertVisible:
+    id: "ShippingAddress-screen"
+# name 없는 TextField → 화면 좌표로 탭(키보드는 idb Escape 루프가 계속 내려둠)
+- tapOn:
+    point: "205,319"                    # Full Name*
+- inputText: "John Doe"
+- tapOn:
+    point: "205,404"                    # Address Line 1*
+- inputText: "123 Main St"
+- tapOn:
+    point: "111,576"                    # City*
+- inputText: "Seoul"
+- tapOn:
+    point: "111,664"                    # Zip Code*
+- inputText: "12345"
+- tapOn:
+    point: "299,664"                    # Country*
+- inputText: "South Korea"
+# ⚠️ 'To Payment'은 키보드 뒤 고정 버튼 → id가 아닌 text 로 탭(키보드는 내려가 있음)
+- tapOn:
+    text: "To Payment"
+
+# ── [단계 5] 결제 정보 입력 ────────────────────────────────────────
+- assertVisible:
+    text: "Card Number*"                # 결제(Payment) 화면 도착 확인
+# ⚠️ '청구지=배송지' 체크박스는 기본값이 이미 체크(selected=true)라 건드리지 않는다.
+#    (탭하면 오히려 해제되어 청구지 주소 폼이 뜨고 'full name' 검증 에러 발생)
+- tapOn:
+    point: "205,406"                    # Full Name*(카드 소유자명)
+- inputText: "John Doe"
+- tapOn:
+    point: "205,499"                    # Card Number*
+- inputText: "4111111111111111"
+- tapOn:
+    point: "111,584"                    # Expiration Date* (MMYY → 08/26 자동 포맷)
+- inputText: "0826"
+- tapOn:
+    point: "299,584"                    # Security Code*
+- inputText: "123"
+# ⚠️ 'Review Order'도 키보드 뒤 고정 버튼 → text 로 탭
+- tapOn:
+    text: "Review Order"
+
+# ── [단계 6] 리뷰 → 주문 실행 ──────────────────────────────────────
+- assertVisible:
+    text: "Review your order"           # 리뷰(Review) 화면 도착 확인
+- assertVisible:
+    text: "Total:"                      # 합계 표시 확인
+# 리뷰 화면은 입력란이 없어 키보드가 없음 → Place Order 바로 탭 가능
+- tapOn:
+    text: "Place Order"
+
+# ── [단계 7] 주문 완료 검증 ────────────────────────────────────────
+- assertVisible: "Checkout Complete"

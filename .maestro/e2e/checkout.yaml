@@ -1,0 +1,139 @@
+appId: com.saucelabs.mydemoapp.android
+tags:
+  - e2e
+---
+# ══════════════════════════════════════════════════════════════════
+#  한 사이클 E2E — SauceLabs My Demo App(Android) 구매 완주
+#  담기 → 장바구니 → 체크아웃(로그인 게이트) → 배송 → 결제 → 리뷰 → 완료
+# ══════════════════════════════════════════════════════════════════
+
+# ── [단계 1] 상품을 장바구니에 담기 ────────────────────────────────
+- launchApp:
+    clearState: true
+- assertVisible: "View menu"          # 카탈로그(Products) 도착 확인
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/productIV"
+    index: 0
+- assertVisible: "Tap to add product to cart"
+- tapOn: "Tap to add product to cart"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/cartTV"
+    text: "1"
+
+# ── [단계 2] 장바구니 화면 확인 ────────────────────────────────────
+- tapOn: "View cart"
+- assertVisible: "My Cart"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/totalPriceTV"
+
+# ── [단계 3] 체크아웃 진입 → 로그인 게이트 ─────────────────────────
+- tapOn: "Confirms products for checkout"
+# 로그인하지 않았으므로 로그인 화면이 끼어든다
+- assertVisible: "Tap to login with given credentials"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/nameET"
+- inputText: "bod@example.com"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/passwordET"
+- inputText: "10203040"
+- hideKeyboard
+- tapOn: "Tap to login with given credentials"
+
+# ── [단계 4] 배송 주소 입력 ────────────────────────────────────────
+# 로그인 후 배송 주소(Checkout) 화면으로 진행됨.
+# ⚠️ 폼이 길어 Zip/Country가 키보드 아래로 가려짐 → 입력 후 hideKeyboard + scrollUntilVisible 로 올려서 탭
+#    (안 그러면 탭이 키보드에 막혀 이전 필드로 입력이 누수됨)
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/fullNameET"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/fullNameET"
+- inputText: "John Doe"
+- hideKeyboard
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/address1ET"
+- inputText: "123 Main St"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/cityET"
+    direction: DOWN
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/cityET"
+- inputText: "Seoul"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/zipET"
+    direction: DOWN
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/zipET"
+- inputText: "12345"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/countryET"
+    direction: DOWN
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/countryET"
+- inputText: "South Korea"
+- hideKeyboard
+# ⚠️ To Payment / Review Order / Place Order 는 모두 paymentBtn id 공유 → accessibility text 로 구분
+- scrollUntilVisible:
+    element:
+      text: "Saves user info for checkout"
+    direction: DOWN
+- tapOn: "Saves user info for checkout"
+
+# ── [단계 5] 결제 정보 입력 ────────────────────────────────────────
+# 결제 화면의 카드 이름 필드는 id nameET (로그인과 동일 id지만 다른 화면). 동일한 스크롤 패턴 적용.
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/nameET"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/nameET"
+- inputText: "John Doe"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/cardNumberET"
+    direction: DOWN
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/cardNumberET"
+- inputText: "4111111111111111"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/expirationDateET"
+    direction: DOWN
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/expirationDateET"
+- inputText: "0826"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/securityCodeET"
+    direction: DOWN
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/securityCodeET"
+- inputText: "123"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Saves payment info and launches screen to review checkout data"
+    direction: DOWN
+- tapOn: "Saves payment info and launches screen to review checkout data"
+
+# ── [단계 6] 리뷰 → 주문 실행 ──────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "com.saucelabs.mydemoapp.android:id/totalAmountTV"
+    direction: DOWN
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/totalAmountTV"
+- scrollUntilVisible:
+    element:
+      text: "Completes the process of checkout"
+    direction: DOWN
+- tapOn: "Completes the process of checkout"
+
+# ── [단계 7] 주문 완료 검증 ────────────────────────────────────────
+- assertVisible: "Checkout Complete"

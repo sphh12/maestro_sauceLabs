@@ -2,6 +2,25 @@
 
 > 최신 작업이 위로 옵니다.
 
+## 2026-07-16
+
+### ✅ stage 2 — 한 사이클 E2E 구매 완주 (Android + iOS 동시 구현)
+
+한 사이클: 담기 → 장바구니 → 체크아웃(로그인 게이트) → 배송 → 결제 → 리뷰 → "Checkout Complete"
+
+**Android E2E** — `.maestro/e2e/checkout.yaml`
+- test-fix **2회**: 1차 `zipET` not found(긴 폼에서 Zip/Country가 키보드에 가려짐 → 탭 막힘 + "Seoul"이 Address Line 1로 누수) → **입력 후 `hideKeyboard` + 아래 필드 `scrollUntilVisible`** 패턴 적용 → 2차 완주
+- 안정성: **3회 재실행 61 COMPLETED / 0 FAILED** (플래키 없음)
+- appId `com.saucelabs.mydemoapp.android`, 계정 `bod@example.com`/`10203040`
+
+**iOS E2E** — `.maestro/e2e/checkout_ios.yaml` + `run_checkout_ios.sh` (서브에이전트 동시 구현, 직접 재현 검증)
+- iPhone 17 시뮬레이터, 번들ID `com.saucelabs.mydemo.app.ios`, 계정 `bob@example.com`/`10203040`
+- 통과(3/3 재현, 종료코드 0) — **단, 러너 스크립트 경유 필수**
+- ⚠️ 환경 제약: iOS 소프트키보드가 Maestro(hideKeyboard 등)로 안 닫힘(RN 앱 + 헤드리스 시뮬) → `To Payment`/`Review Order` 버튼이 키보드 뒤 고정 → **idb HID Escape(keycode 41) 백그라운드 루프**로 키보드 내려두고 실행
+- iOS는 로그인이 저장계정 버튼 방식, name 없는 입력란은 좌표 탭 → Android와 방식 상이
+
+**플랫폼 셀렉터 차이**: Android=resource-id / iOS=accessibility-id(일부만 매칭, 나머지 text·좌표). 상세 표는 Todo.md 참고.
+
 ## 2026-07-15
 
 ### ✅ stage 1 완료 — SauceLabs My Demo App(Android) 로그인 플로우 실제 실행 통과
