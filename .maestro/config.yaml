@@ -1,0 +1,18 @@
+# .maestro/config.yaml — Maestro 워크스페이스 설정
+#
+# 실행 대상 플로우 글롭 (config.yaml 위치 기준 상대경로).
+# subflows/ 는 포함하지 않으므로, 단독 실행 대상에서 자동 제외된다(재사용 조각).
+flows:
+  - "smoke/*.yaml"
+  - "e2e/*.yaml"
+
+# 실행 순서 (선택). 이름 = 각 flow 파일명(확장자 제외) 또는 name: 필드.
+# 단순한 것(app-launch)부터 돌려 문제 구간을 좁힌다.
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - app-launch
+    - login
+
+# 태그 필터는 CLI 로 덮어쓸 수 있음:
+#   maestro test --include-tags smoke .maestro

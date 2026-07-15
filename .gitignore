@@ -1,0 +1,24 @@
+# 실제 환경변수 (env.example 만 추적)
+.env
+*.env
+!env.example
+!*.env.example
+
+# 앱 바이너리 — 커밋 금지 (SauceLabs releases 에서 내려받아 apps/ 에 배치)
+#   Android: github.com/saucelabs/my-demo-app-android/releases
+#   iOS:     github.com/saucelabs/my-demo-app-ios/releases
+apps/**/*.apk
+apps/**/*.ipa
+apps/**/*.zip
+apps/**/*.app
+
+# Maestro 실행 산출물 / 리포트
+debug-output/
+maestro-report*
+report.xml
+*.mp4
+
+# OS / 에디터
+.DS_Store
+.idea/
+.vscode/

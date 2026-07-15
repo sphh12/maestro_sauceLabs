@@ -1,0 +1,12 @@
+appId: com.saucelabs.mydemoapp.android
+tags:
+  - smoke
+---
+# 가장 단순한 스모크 — 앱이 실행되고 메인 화면(상단 햄버거 메뉴)이 뜨는지만 확인.
+# login.yaml 이 실패할 때 "런치 문제"인지 "로그인 내비 문제"인지 구간을 좁히는 용도.
+- launchApp:
+    clearState: true
+
+# 런치 직후 Products 카탈로그가 뜬다(로그인 화면 아님). 항상 존재하는 햄버거 메뉴로 검증.
+# "View menu" = 햄버거 아이콘의 content-desc (셀렉터 충실도 검증 완료).
+- assertVisible: "View menu"
