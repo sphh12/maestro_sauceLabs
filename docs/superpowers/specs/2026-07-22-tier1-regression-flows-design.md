@@ -149,9 +149,14 @@ flows:
 
 ---
 
-## 6. `maestro studio`로 확정할 미확정 항목
+## 6. 셀렉터·동작 미확정 항목 (실행 전 확정 대상)
 
-실행 전 **추측 금지**. 아래는 studio/hierarchy로 실제 확인 후 확정한다:
+실행 전 **추측 금지**. 확정 방법은 아래 2가지 병행:
+- **기본(Claude 자동):** `maestro hierarchy`로 화면 요소 트리를 **텍스트 덤프**해 셀렉터 확정
+- **보조(사용자 육안):** 애매하거나 시각 확인이 필요하면 사용자가 `maestro studio`로 확인 후 공유
+- 배경: `maestro studio`는 브라우저 GUI라 Claude가 직접 볼 수 없음 → hierarchy 텍스트가 Claude의 확정 경로
+
+아래 항목을 위 방법으로 확정한다:
 
 1. 네거티브 3케이스의 **에러 메시지 텍스트·셀렉터** (필드 하단 텍스트인지 스낵바인지)
 2. 네거티브 케이스 간 **상태 초기화 방식** (에러 후 필드 유지 여부 → `clearText` vs `launchApp` 재실행)
@@ -165,7 +170,7 @@ flows:
 ## 7. 검증 방법 (실제 실행까지)
 
 각 파일에 대해:
-1. `maestro studio`로 셀렉터 라이브 확정
+1. **셀렉터 확정** — Claude가 `maestro hierarchy`로 요소 트리 덤프→셀렉터 확정, 애매 시 사용자가 `maestro studio` 육안 확인 (§6 방법)
 2. `maestro check-syntax`
 3. `maestro --device <emulator> test .maestro/regression/<file>.yaml` → **통과 확인**
 4. 리팩터링된 `smoke/login.yaml`·`e2e/checkout.yaml` **재실행 검증**
