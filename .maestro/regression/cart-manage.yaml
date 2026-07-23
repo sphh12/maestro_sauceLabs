@@ -1,0 +1,63 @@
+appId: com.saucelabs.mydemoapp.android
+tags:
+  - regression
+---
+# 장바구니 수량 변경 · 항목 삭제 검증 — 담기 → View cart → 수량 증가(+) → 항목 삭제.
+# 장바구니 조작은 로그인 불필요(체크아웃 진입 전까지 로그인 게이트 없음).
+#
+# ※ 탐색 결과(probe flow + hierarchy 덤프 실측, 2026-07-23):
+#   - 수량 증가(+) 버튼: id "com.saucelabs.mydemoapp.android:id/plusIV"
+#     (accessibilityText: "Increase item quantity". 대응하는 감소 버튼은 "minusIV", 이 flow에서는 미사용)
+#   - 삭제 버튼: id "com.saucelabs.mydemoapp.android:id/removeBt"
+#     (주의: "removeBtn"이 아니라 "removeBt". text "Remove Item" / accessibilityText "Removes product from cart")
+#   - 수량 증가(+) 1회 탭 시 실제로 바뀌는 요소(1 -> 2, 전부 동기화되어 함께 바뀜을 실측 확인):
+#       · 헤더 장바구니 배지 id "cartTV"          : "1"       -> "2"
+#       · 라인 아이템 수량 표시 id "noTV"          : "1"       -> "2"
+#       · 하단 합계 개수 id "itemsTV"              : "1 Items" -> "2 Items"
+#       · 하단 합계 금액 id "totalPriceTV"         : "$ 29.99" -> "$ 59.98"
+#     (계획서가 가정한 "배지가 2로 바뀐다"는 가설이 실측과 일치 — cartTV/noTV 둘 다 안정적으로 바뀌므로 둘 다 assert)
+#   - removeBt 는 수량과 무관하게 그 라인 아이템 자체를 즉시 제거한다
+#     (실측: 수량 2인 상태에서 1번 탭 -> 바로 빈 장바구니로 전환, 수량 감소 방식이 아님).
+#   - 삭제 후 빈 장바구니 상태(실측): "My Cart" 타이틀 / totalPriceTV / itemsTV 가 모두 뷰트리에서 사라지고
+#     완전히 다른 레이아웃(noItemCL)으로 전환된다 — "No Items"(id noItemTitleTV), 안내 문구
+#     "Oh no! Your cart is empty. Fill it up with swag to complete your purchase.", "Go Shopping"(id shoppingBt) 노출.
+#     헤더의 cartTV 배지 요소 자체도 뷰트리에서 사라짐("0" 텍스트로 남는 게 아니라 요소가 없어짐) — 그래서
+#     빈 카트 검증은 cartTV가 아니라 "No Items" / "Go Shopping"으로 확정.
+
+- launchApp:
+    clearState: true
+- assertVisible: "View menu"   # 카탈로그(Products) 도착 확인
+
+# ── [단계 1] 상품 담기 ──────────────────────────────────────────
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/productIV"
+    index: 0
+- assertVisible: "Tap to add product to cart"
+- tapOn: "Tap to add product to cart"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/cartTV"
+    text: "1"
+
+# ── [단계 2] 장바구니 진입 ──────────────────────────────────────
+- tapOn: "View cart"
+- assertVisible: "My Cart"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/totalPriceTV"
+
+# ── [단계 3] 수량 증가(+) ───────────────────────────────────────
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/plusIV"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/cartTV"
+    text: "2"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/noTV"
+    text: "2"
+
+# ── [단계 4] 항목 삭제 ──────────────────────────────────────────
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/removeBt"
+- assertVisible:
+    id: "com.saucelabs.mydemoapp.android:id/noItemTitleTV"
+    text: "No Items"
+- assertVisible: "Go Shopping"
