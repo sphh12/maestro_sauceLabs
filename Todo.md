@@ -6,11 +6,14 @@
 - [x] stage 1: 로그인 플로우 작성 + 실제 실행 통과 (Android 12 steps)
 - [x] **stage 2: 한 사이클 E2E 구매 완주 — Android 통과(61 steps, 3회 안정)**
 - [x] **stage 2: 한 사이클 E2E 구매 완주 — iOS 통과(3/3, 러너 경유)**
+- [x] **Tier1 회귀 4종 (Android, 2026-07-23) — subagent-driven, 4/4 실기 통과**
+  - 네거티브 로그인(필수입력 누락 3케이스) / 카탈로그 정렬 4종 / 장바구니 수량·삭제 / 로그아웃
+- [x] **로그인 subflow 추출**(`subflows/login.yaml`, USERNAME/PASSWORD 파라미터화) + `smoke/login`·`e2e/checkout` 리팩터링(재검증 통과) — stage 3 "POM 정공법"의 subflow 축 선반영
 
-## 🔜 다음 (stage 2 잔여 — 서로 독립적 flow → 서브에이전트 병렬 가능)
-- [ ] 네거티브 로그인 (빈 값→에러, `alice@example.com`→`locked out`) — `tags:[regression]` (Android)
-- [ ] 카탈로그 정렬 — 정렬 시트 오픈/첫 항목 변경만 확인
-- [ ] 장바구니 항목 삭제 / 수량 변경
+## 🔜 다음
+- [ ] **담기→장바구니 시퀀스 subflow 추출** — `cart-manage`·`e2e/checkout`에 중복(Task7 리뷰 발견). checkout 회귀 위험 있어 신중히
+- [ ] 네거티브 로그인 심화 — 이 앱은 **빈 값만 검증**(형식·자격증명·locked out 미검증, change_notes 참고). 서버검증 있는 앱에서 재검토
+- [ ] Tier2 (상품상세 색상·수량, 다중 담기·합계, 그리드/리스트 뷰토글, Reset App State)
 
 ## 🔧 견고화 (E2E 신뢰도)
 - [ ] **iOS 키보드 우회 개선** — 현재 `idb` Escape 루프 + 좌표 탭에 의존. 개선안:

@@ -2,6 +2,34 @@
 
 > 최신 작업이 위로 옵니다.
 
+## 2026-07-23
+
+### ✅ Tier1 회귀 4종 + 로그인 subflow 추출 (Android, subagent-driven)
+
+브레인스토밍→스펙→계획(전날) 후 subagent-driven-development로 구현. 각 flow는 셀렉터를 `maestro hierarchy`로 실측 확정 → `maestro test` 실기 통과 → 커밋. 전체 회귀 스위트 **4/4 통과**(`maestro test --include-tags regression .maestro`, 3m13s).
+
+**신규 regression 4종** — `.maestro/regression/`
+- `logout.yaml` — 로그인(subflow)→Logout→"Log In" 재노출. 로그아웃 확인 다이얼로그 버튼은 실측 **"LOGOUT"**(공백 없음, 계획 예상 "LOG OUT"과 다름)
+- `login-negative.yaml` — 필수입력 누락 3케이스(둘다 빈값 / username 빈값 / password 빈값). 에러 텍스트 실측: "Username is required", **"Enter Password"**(예상 "Password is required"와 다름)
+- `catalog-sort.yaml` — 정렬 4종(이름↑↓/가격↑↓). 아이콘 `sortIV`, 최상단 상품 실측(Backpack / Test.allTheThings T-Shirt / Onesie $7.99 / Fleece Jacket $49.99)
+- `cart-manage.yaml` — 담기→수량+(`plusIV`, 배지 `cartTV` 1→2)→삭제(`removeBt`, "No Items"/"Go Shopping" 등장)
+
+**로그인 subflow 추출** — `subflows/login.yaml`(`${USERNAME}`/`${PASSWORD}` 파라미터화)
+- `runFlow.env`→subflow `${VAR}` 치환 실동작 검증(스크린샷 확인)
+- 기존 `smoke/login.yaml`·`e2e/checkout.yaml` 인라인 로그인을 subflow 호출로 리팩터링 → 재실행 통과(로그인 중복 4곳→1곳)
+- `config.yaml`에 `regression/*.yaml` 글롭 추가
+
+**⚠️ 앱 특성 발견(중요)**: SauceLabs 데모앱은 로그인 시 **필드가 비었는지만 검증**한다. 잘못된 이메일 형식·없는 아이디·틀린 비밀번호·**`alice@example.com`(locked out) 계정까지 전부 로그인 성공**(자격증명/형식/락아웃 미검증). → 계획의 "틀린 비번/없는 아이디→에러"·"locked out" 케이스는 폐기하고 필수입력 누락으로 재구성.
+
+**기타 실측 노트**
+- Maestro 텍스트 매칭은 **전체일치(full match)** — 부분 문자열로는 매칭 안 됨
+- 삭제 버튼 실제 id는 `removeBt`(계획 후보 `removeBtn` 아님)
+- 담기→장바구니 시퀀스가 `cart-manage`·`checkout`에 중복 → subflow 추출 후속 후보
+
+**부트스트랩**: `.claude/skills/verify/SKILL.md`(프로젝트 verify 레시피) 추가.
+
+**커밋 체인**: `31ba988`(subflow) → `d3d8fd4`(smoke/login) → `72eddda`(checkout) → `ec6875c`(logout) → `6a44585`(verify skill) → `cba325c`(login-negative) → `64e8106`(catalog-sort) → `4d65e4f`(cart-manage) → `7f57cb5`(config)
+
 ## 2026-07-16
 
 ### ✅ stage 2 — 한 사이클 E2E 구매 완주 (Android + iOS 동시 구현)
