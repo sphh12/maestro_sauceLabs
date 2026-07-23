@@ -1,0 +1,34 @@
+appId: com.saucelabs.mydemoapp.android
+tags:
+  - regression
+---
+# 로그아웃 검증 — 로그인(subflow) → 메뉴 → Logout → 확인 다이얼로그 → 로그인 해제 확인
+# ※ Logout Menu Item 탭 시 확인 다이얼로그가 뜬다(실기 확인 완료).
+#   제목 "Log Out" / 메시지 "Are you sure you want to logout" / 버튼 "CANCEL", "LOGOUT"
+- launchApp:
+    clearState: true
+
+# 로그인 화면 진입 (진입 경로는 이 flow 책임)
+- tapOn: "View menu"
+- tapOn: "Log In"
+- assertVisible: "Tap to login with given credentials"
+
+# 자격증명 입력+제출 (subflow 재사용)
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      USERNAME: "bod@example.com"
+      PASSWORD: "10203040"
+
+# 로그인 성공 확인
+- tapOn: "View menu"
+- assertVisible: "Logout Menu Item"
+
+# 로그아웃 실행 → 확인 다이얼로그에서 LOGOUT 탭으로 확정
+- tapOn: "Logout Menu Item"
+- assertVisible: "Are you sure you want to logout"
+- tapOn: "LOGOUT"
+
+# 로그아웃 검증 — 메뉴 재오픈 시 다시 'Log In' 노출
+- tapOn: "View menu"
+- assertVisible: "Log In"
