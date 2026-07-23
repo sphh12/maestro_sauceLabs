@@ -2,38 +2,22 @@ appId: com.saucelabs.mydemoapp.android
 tags:
   - smoke
 ---
-# ★ stage 1 목표: SauceLabs My Demo App(Android) 로그인 플로우 (실제 실행)
-# 자격증명은 공개 데모 값이라 인라인 하드코딩(동작 코드 먼저 → 추후 subflow 로 파라미터화).
-
-# 앱 실행 (상태 초기화)
-# 주의: 런치 시 Products 카탈로그가 먼저 뜬다 (로그인 화면 아님).
+# 정상 로그인 스모크 — 로그인 동작은 subflow 로 위임(중복 제거).
 - launchApp:
     clearState: true
 
-# 로그인 화면은 런치 시 노출되지 않는다 → 메뉴 드로어로 진입 ("View menu" → "Log In")
+# 로그인 화면 진입 (진입 경로는 이 flow 책임)
 - tapOn: "View menu"
 - tapOn: "Log In"
-
-# 로그인 화면 진입 확인 (로그인 버튼 = accessibility-id)
 - assertVisible: "Tap to login with given credentials"
 
-# 사용자명 입력 (resource-id nameET)
-# 주의: 이메일은 앱 자체 오타로 'bod' (bob 아님). 웹 값 standard_user 는 안 통함.
-- tapOn:
-    id: "com.saucelabs.mydemoapp.android:id/nameET"
-- inputText: "bod@example.com"
+# 자격증명 입력+제출 (subflow 재사용)
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      USERNAME: "bod@example.com"
+      PASSWORD: "10203040"
 
-# 비밀번호 입력 (resource-id passwordET) — 전 계정 공통 10203040
-- tapOn:
-    id: "com.saucelabs.mydemoapp.android:id/passwordET"
-- inputText: "10203040"
-
-# 소프트 키보드가 로그인 버튼을 가리는 것 방지
-- hideKeyboard
-
-# 로그인 실행 (accessibility-id)
-- tapOn: "Tap to login with given credentials"
-
-# 로그인 성공 검증 — 전용 화면이 없으므로 메뉴 재오픈 후 'Logout Menu Item' 노출로 확인
+# 성공 검증 — 메뉴 재오픈 후 Logout 노출(이 flow 책임)
 - tapOn: "View menu"
 - assertVisible: "Logout Menu Item"
