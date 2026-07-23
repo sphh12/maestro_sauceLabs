@@ -47,7 +47,7 @@ Maestro flow 문법 자체에는 "현재 화면 덤프" 커맨드가 없다. 대
 4. probe flow와 scratch 덤프 파일은 커밋 금지 — 확인 끝나면 바로 삭제.
 
 ## 알아둘 것 (gotcha)
-- `.maestro/config.yaml` 의 `flows:` 글롭은 현재 `smoke/*.yaml`, `e2e/*.yaml` 만 포함하고
-  `regression/*.yaml` 은 아직 없다(별도 task로 예정). 그래서 `maestro test .maestro`
-  (전체 스위트) 로는 regression flow 가 안 잡히고, 파일 경로를 직접 지정해서 돌려야 한다.
+- `.maestro/config.yaml` 의 `flows:` 글롭은 `smoke/*.yaml`, `e2e/*.yaml`, `regression/*.yaml` 을 포함한다.
+  특정 태그만 돌리려면 `--include-tags` 사용(예: `maestro test --include-tags regression .maestro`).
+  `subflows/` 는 글롭에서 제외되어 단독 실행 대상이 아니다(재사용 조각).
 - 로그인은 `subflows/login.yaml` 재사용 (정상 자격증명: `bod@example.com` / `10203040`).

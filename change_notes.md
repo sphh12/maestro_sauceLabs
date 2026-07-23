@@ -16,7 +16,7 @@
 
 **로그인 subflow 추출** — `subflows/login.yaml`(`${USERNAME}`/`${PASSWORD}` 파라미터화)
 - `runFlow.env`→subflow `${VAR}` 치환 실동작 검증(스크린샷 확인)
-- 기존 `smoke/login.yaml`·`e2e/checkout.yaml` 인라인 로그인을 subflow 호출로 리팩터링 → 재실행 통과(로그인 중복 4곳→1곳)
+- 기존 `smoke/login.yaml`·`e2e/checkout.yaml` 인라인 로그인을 subflow 호출로 리팩터링 → 재실행 통과(로그인 로직 1곳 정의, 호출처 3곳: smoke/login·checkout·logout. login-negative는 부분입력이라 직접 입력)
 - `config.yaml`에 `regression/*.yaml` 글롭 추가
 
 **⚠️ 앱 특성 발견(중요)**: SauceLabs 데모앱은 로그인 시 **필드가 비었는지만 검증**한다. 잘못된 이메일 형식·없는 아이디·틀린 비밀번호·**`alice@example.com`(locked out) 계정까지 전부 로그인 성공**(자격증명/형식/락아웃 미검증). → 계획의 "틀린 비번/없는 아이디→에러"·"locked out" 케이스는 폐기하고 필수입력 누락으로 재구성.
