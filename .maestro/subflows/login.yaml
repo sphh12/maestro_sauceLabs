@@ -1,0 +1,13 @@
+appId: com.saucelabs.mydemoapp.android
+---
+# 재사용 조각: 로그인 화면에 도착한 상태에서 자격증명 입력 → 제출까지만.
+# 진입 경로(메뉴/체크아웃 게이트)와 성공·실패 검증은 호출하는 flow가 담당한다.
+# USERNAME/PASSWORD 는 runFlow 의 env 로 주입된다.
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/nameET"
+- inputText: "${USERNAME}"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/passwordET"
+- inputText: "${PASSWORD}"
+- hideKeyboard
+- tapOn: "Tap to login with given credentials"
