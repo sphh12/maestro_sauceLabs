@@ -30,14 +30,11 @@ tags:
 - tapOn: "Confirms products for checkout"
 # 로그인하지 않았으므로 로그인 화면이 끼어든다
 - assertVisible: "Tap to login with given credentials"
-- tapOn:
-    id: "com.saucelabs.mydemoapp.android:id/nameET"
-- inputText: "bod@example.com"
-- tapOn:
-    id: "com.saucelabs.mydemoapp.android:id/passwordET"
-- inputText: "10203040"
-- hideKeyboard
-- tapOn: "Tap to login with given credentials"
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      USERNAME: "bod@example.com"
+      PASSWORD: "10203040"
 
 # ── [단계 4] 배송 주소 입력 ────────────────────────────────────────
 # 로그인 후 배송 주소(Checkout) 화면으로 진행됨.
