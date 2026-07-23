@@ -1,0 +1,53 @@
+appId: com.saucelabs.mydemoapp.android
+tags:
+  - regression
+---
+# 네거티브 로그인 — 계획서 원안(빈 값/틀린 비밀번호/없는 아이디) 대신
+# 실제 앱 동작 탐색(probe + hierarchy 덤프) 결과에 맞춰 구성.
+#
+# ⚠️ 탐색 결과: 이 앱은 "필드가 비어있는지"만 검증하고, 사용자명 형식·존재 여부·
+# 비밀번호 일치 여부는 전혀 검증하지 않는다(실측 확인, 2026-07-23):
+#   - 잘못된 이메일 형식("notanemail") + 아무 비밀번호            → 에러 없이 로그인 성공
+#   - 형식은 맞지만 존재하지 않는 아이디(nobody@example.com)      → 에러 없이 로그인 성공
+#   - 저장 계정 목록의 "alice@example.com (locked out)" 탭 로그인 → 에러 없이 로그인 성공(락아웃 미적용)
+#   - (별도 확인) 틀린 비밀번호도 에러 없이 로그인 성공
+# 즉 실제로 에러가 나는 시나리오는 "필수 입력값 누락" 계열뿐이며, 아래 3케이스는
+# 2-필드 폼의 표준 동치분할(둘 다 결핍 / 사용자명만 결핍 / 비밀번호만 결핍)에 대응한다.
+
+# ── 케이스 ①: 사용자명·비밀번호 둘 다 빈 값 → 제출 ──
+- launchApp:
+    clearState: true
+- tapOn: "View menu"
+- tapOn: "Log In"
+- assertVisible: "Tap to login with given credentials"
+- tapOn: "Tap to login with given credentials"
+- assertVisible: "Username is required"
+- assertVisible: "Tap to login with given credentials"   # 로그인 화면에 머무름(홈으로 안 넘어감)
+
+# ── 케이스 ②: 사용자명 빈 값, 비밀번호만 입력 → 제출 ──
+- launchApp:
+    clearState: true
+- tapOn: "View menu"
+- tapOn: "Log In"
+- assertVisible: "Tap to login with given credentials"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/passwordET"
+- inputText: "10203040"
+- hideKeyboard
+- tapOn: "Tap to login with given credentials"
+- assertVisible: "Username is required"
+- assertVisible: "Tap to login with given credentials"
+
+# ── 케이스 ③: 사용자명만 입력, 비밀번호 빈 값 → 제출 ──
+- launchApp:
+    clearState: true
+- tapOn: "View menu"
+- tapOn: "Log In"
+- assertVisible: "Tap to login with given credentials"
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/nameET"
+- inputText: "bod@example.com"
+- hideKeyboard
+- tapOn: "Tap to login with given credentials"
+- assertVisible: "Enter Password"
+- assertVisible: "Tap to login with given credentials"
