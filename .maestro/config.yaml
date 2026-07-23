@@ -5,6 +5,7 @@
 flows:
   - "smoke/*.yaml"
   - "e2e/*.yaml"
+  - "regression/*.yaml"
 
 # 실행 순서 (선택). 이름 = 각 flow 파일명(확장자 제외) 또는 name: 필드.
 # 단순한 것(app-launch)부터 돌려 문제 구간을 좁힌다.
