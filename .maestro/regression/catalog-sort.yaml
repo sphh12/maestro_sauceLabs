@@ -1,0 +1,51 @@
+appId: com.saucelabs.mydemoapp.android
+tags:
+  - regression
+---
+# 카탈로그 정렬 4종 검증 — 정렬 아이콘 탭 → 옵션 선택 → 최상단 상품명 확인.
+# 카탈로그는 로그인 불필요(런치 직후 Products 화면 도착).
+#
+# ※ 탐색 결과(hierarchy 덤프 실측, 2026-07-23):
+#   - 정렬 아이콘: id "com.saucelabs.mydemoapp.android:id/sortIV"
+#     (accessibilityText: "Shows current sorting order and displays available sorting options")
+#     헤더 영역 고정 요소라 리스트를 스크롤/재정렬해도 화면에서 가려지지 않음(실측: scrollUntilVisible 불필요).
+#   - 옵션 다이얼로그 4개 라벨(실측 그대로): "Name - Ascending", "Name - Descending",
+#     "Price - Ascending", "Price - Descending".
+#   - Maestro 텍스트 매칭은 부분일치가 아니라 전체일치(full match) — probe로 확인
+#     (예: "Fleece Jacket" 부분 문자열은 화면에 "Sauce Labs Fleece Jacket"이 보여도 assertVisible 실패).
+#     따라서 아래 각 상품명은 실측한 전체 타이틀 문자열 그대로 사용하면 다른 variant와 오매칭되지 않는다.
+#   - 정렬은 상태가 유지되므로 launchApp은 1회만, 이후 4종을 순차 적용(각 단계가 이전 단계 상태를 갈아엎으므로
+#     상단 상품명이 매번 실제로 바뀌는 것 자체가 정렬 적용의 증거).
+#   - 각 정렬 적용 후 최상단 상품명(실측, 동률 없이 유일하게 확인됨):
+#       Name - Ascending  -> "Sauce Labs Backpack"
+#       Name - Descending -> "Test.allTheThings() T-Shirt (yellow)"
+#       Price - Ascending -> "Sauce Labs Onesie" ($ 7.99, 최저가 유일)
+#       Price - Descending-> "Sauce Labs Fleece Jacket" ($ 49.99, 동가 variant 여럿 있으나 무-variant 항목이 최상단)
+
+- launchApp:
+    clearState: true
+- assertVisible: "View menu"   # 카탈로그(Products) 도착 확인
+
+# ── Name - Ascending ──
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/sortIV"
+- tapOn: "Name - Ascending"
+- assertVisible: "Sauce Labs Backpack"
+
+# ── Name - Descending ──
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/sortIV"
+- tapOn: "Name - Descending"
+- assertVisible: "Test.allTheThings() T-Shirt (yellow)"
+
+# ── Price - Ascending ──
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/sortIV"
+- tapOn: "Price - Ascending"
+- assertVisible: "Sauce Labs Onesie"
+
+# ── Price - Descending ──
+- tapOn:
+    id: "com.saucelabs.mydemoapp.android:id/sortIV"
+- tapOn: "Price - Descending"
+- assertVisible: "Sauce Labs Fleece Jacket"
