@@ -1,10 +1,41 @@
-# Change Notes — maestro_sauceLabs
+# Changelog
 
-> 최신 작업이 위로 옵니다.
+[Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식을 따른다. **최신 작업이 위로** 온다.
+각 항목은 `### Added` / `### Changed` / `### Fixed` 로 분류한다.
+개편 이전 원본 스냅샷이 필요하면 → [`archive/CHANGELOG-2026H1.md`](archive/CHANGELOG-2026H1.md)
+
+살아있는 레퍼런스(플랫폼 셀렉터 차이 표 · 실행 명령)는 이력이 아니라 [`Todo.md`](Todo.md) 에 있다.
+
+## [Unreleased]
+
+> 우선순위 그룹을 유지한다(Added/Fixed 보다 순서 정보가 유용하다).
+
+### 🔧 견고화 — E2E 신뢰도 (최우선)
+- [ ] **iOS CI 실패 원인 규명 (최우선)** — `checkout_ios` 가 CI 에서 `Assertion is false: "Card Number*" is visible` 로 실패.
+      배송 폼 좌표 탭 후 `To Payment` → 결제 화면 전환이 안 됨. **아티팩트에 실패 스크린샷 있음**(런 33358285987).
+      로컬은 3/3 통과하므로 CI 환경 차이(키보드 상태·스크롤 위치·타이밍) 의심. 추정 말고 스크린샷으로 확정할 것.
+- [ ] **iOS 키보드 우회 개선** — 현재 `idb` Escape 루프 + 좌표 탭에 의존. 개선안:
+      (a) 실기기 또는 포커스된 Simulator 창에서 하드웨어 키보드 연결 시 우회 불필요한지 검토,
+      (b) name 없는 입력란에 접근성 id 부여 가능한지(앱측) 확인해 좌표 탭 제거,
+      (c) CI에서 idb 루프 대체(Maestro Cloud iOS 등)
+- [ ] iOS 좌표 탭은 해상도 의존적(iPhone 17 기준) → 기기 바뀌면 재보정 필요 문서화
+
+### 🔜 다음
+- [ ] **담기→장바구니 시퀀스 subflow 추출** — `cart-manage`·`e2e/checkout`에 중복(Task7 리뷰 발견). checkout 회귀 위험 있어 신중히
+- [ ] 네거티브 로그인 심화 — 이 앱은 **빈 값만 검증**(형식·자격증명·locked out 미검증, 아래 2026-07-23 항목 참고). 서버검증 있는 앱에서 재검토
+- [ ] Tier2 (상품상세 색상·수량, 다중 담기·합계, 그리드/리스트 뷰토글, Reset App State)
+
+### 🔮 이후 (stage 3 — 템플릿화, Rule of Three)
+- [ ] **POM 정공법**(웹검토 반영, 2축): `runScript`로 셀렉터 중앙화 + `subflows/login.yaml`로 동작 추출
+- [ ] **`${APP_ID}` 파라미터화** — `${USERNAME}`/`${PASSWORD}` 는 2026-07-23 subflow 추출에서 완료. iOS/멀티앱 대비, `env.example` 준비됨
+- [ ] 크로스플랫폼 구조: 공용 flow는 feature 폴더 루트, 플랫폼 전용은 `android/`·`ios/` 하위 (Maestro 공식 관례)
+- [ ] `template/` 승격 + 축약 README
 
 ## 2026-08-31
 
-### ⚠️ 저장소 public 전환 + git 히스토리 재작성 (Mac 재클론 필요)
+### Changed
+
+#### ⚠️ 저장소 public 전환 + git 히스토리 재작성 (Mac 재클론 필요)
 
 macOS 러너를 무료로 쓰려고 저장소를 **public 으로 전환**했다(public 은 standard 러너가 분 제한 없이 무료 — macOS 포함).
 
@@ -21,7 +52,9 @@ README.md 는 최초 커밋에서 한 번 추가되고 수정된 적이 없어 �
   ```
 - `main` 을 작업 브랜치로 fast-forward. 기본 브랜치에 README 만 있으면 **수동 실행 버튼·cron 이 동작하지 않기 때문**
 
-### ✅ GitHub Actions CI 도입 — Android 7/7 통과
+### Added
+
+#### ✅ GitHub Actions CI 도입 — Android 7/7 통과
 
 `appium-SMDA` 워크플로 구성을 모태로 Android·iOS 를 별도 파일로 분리했다(iOS 실패가 Android 회귀를 붉히지 않도록).
 
@@ -46,7 +79,9 @@ push 마다 smoke 만 돌릴지 검토했으나, 시간의 대부분이 에뮬�
 
 ## 2026-07-23
 
-### ✅ Tier1 회귀 4종 + 로그인 subflow 추출 (Android, subagent-driven)
+### Added
+
+#### ✅ Tier1 회귀 4종 + 로그인 subflow 추출 (Android, subagent-driven)
 
 브레인스토밍→스펙→계획(전날) 후 subagent-driven-development로 구현. 각 flow는 셀렉터를 `maestro hierarchy`로 실측 확정 → `maestro test` 실기 통과 → 커밋. 전체 회귀 스위트 **4/4 통과**(`maestro test --include-tags regression .maestro`, 3m13s).
 
@@ -74,7 +109,9 @@ push 마다 smoke 만 돌릴지 검토했으나, 시간의 대부분이 에뮬�
 
 ## 2026-07-16
 
-### ✅ stage 2 — 한 사이클 E2E 구매 완주 (Android + iOS 동시 구현)
+### Added
+
+#### ✅ stage 2 — 한 사이클 E2E 구매 완주 (Android + iOS 동시 구현)
 
 한 사이클: 담기 → 장바구니 → 체크아웃(로그인 게이트) → 배송 → 결제 → 리뷰 → "Checkout Complete"
 
@@ -93,7 +130,9 @@ push 마다 smoke 만 돌릴지 검토했으나, 시간의 대부분이 에뮬�
 
 ## 2026-07-15
 
-### ✅ stage 1 완료 — SauceLabs My Demo App(Android) 로그인 플로우 실제 실행 통과
+### Added
+
+#### ✅ stage 1 완료 — SauceLabs My Demo App(Android) 로그인 플로우 실제 실행 통과
 
 **환경 셋업**
 - Maestro **2.6.1** 설치 (curl 공식 스크립트) + `~/.zshrc` PATH 등록
@@ -120,3 +159,7 @@ push 마다 smoke 만 돌릴지 검토했으나, 시간의 대부분이 에뮬�
 - `maestro test login.yaml`: **통과 (12 steps 전부 COMPLETED)** ← stage 1 목표 달성
 
 **미결정 확정**: 범위 = **모바일 전용**, 'sauceLabs' = **데모앱(테스트 대상)** (클라우드 팜 아님)
+
+---
+
+개편 이전 원본 스냅샷(구 `Todo.md` 전문) → [`archive/CHANGELOG-2026H1.md`](archive/CHANGELOG-2026H1.md)
