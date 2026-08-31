@@ -20,8 +20,10 @@ tags:
 # ── [단계 1] 상품을 장바구니에 담기 ────────────────────────────────
 - launchApp:
     clearState: true
-- assertVisible:
-    id: "Product Image"                 # 카탈로그(Catalog) 도착 확인
+- extendedWaitUntil:
+    visible:
+      id: "Product Image"
+    timeout: 30000                      # 카탈로그(Catalog) 도착 확인 / CI 콜드 시뮬 대비
 - tapOn:
     id: "Product Image"                 # 첫 상품 → 상세(ProductDetails)
     index: 0

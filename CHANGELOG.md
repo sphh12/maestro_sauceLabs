@@ -35,6 +35,36 @@
 
 ### Changed
 
+#### 🔧 CI 안정화 — 무작위 1개 플로우 실패 추적
+
+CI 도입 직후 Android 회귀가 **4회 실행 중 1회만 통과**했다. 실패는 매번 다른 플로우에서
+**동일 시그니처**로 났다 — 약 19초, 아티팩트 스크린샷은 **완전한 백지**, `"View menu"` 미발견.
+
+원인 추적 순서와 각 단계에서 기각된 가설:
+1. **ANR 다이얼로그** — 첫 실패에서 6/6 전멸. 스크린샷에 `"Pixel Launcher isn't responding"` 이
+   앱 위를 덮고 있었다. `adb shell settings put global hide_error_dialogs 1` 로 해결.
+   (앱은 정상이었다 — 로그만 봤다면 셀렉터 문제로 오진했을 것)
+2. **"7번째 콜드스타트 누적"** — `checkout` 이 2회 연속 죽어 세운 가설. **기각**:
+   에뮬레이터 자원을 올린 회차에서 실패가 `catalog-sort` 로 옮겨갔다.
+3. **에뮬레이터 자원 부족** — RAM 4G→6G, 코어 2→3. **효과 없음**(실패 위치만 이동).
+   원인 대응은 아니었으나 보조로 유지한다.
+4. **RN 번들 초기 렌더링 타임아웃** (실제 원인) — 7개 플로우 전부가 `launchApp: clearState`
+   직후 곧바로 `"View menu"` 를 검증/탭한다. CI 에서 첫 프레임이 기본 타임아웃을 넘길 때가 있다.
+   → `launchApp` 사이트 **9곳**에 `extendedWaitUntil`(30s) 적용. 로컬은 즉시 통과해 동작 변화 없음.
+   `assertVisible` 에는 `timeout` 속성이 **없다**(`check-syntax` 로 확인: `Unknown Property`).
+   추가로 툴바(`View menu`)는 상품 그리드보다 먼저 뜰 수 있어, `productIV` 를 탭하는
+   `checkout`·`cart-manage` 는 그 요소를 별도로 기다린다(코드리뷰 지적 반영).
+
+**CI 실측으로만 드러난 함정** — 문서로는 알 수 없고 로그로만 확인된 것들:
+- `android-emulator-runner` 의 `script:` 는 bash 가 아니라 **dash** 로 실행 → `set -o pipefail` 즉사
+- 그 `script:` 는 통짜 스크립트가 아니라 **한 줄씩 별개의 `sh -c`** 로 실행 → 백슬래시 줄바꿈 불가,
+  `set`/`export` 가 다음 줄로 전파되지 않음. 대신 액션이 각 줄 종료코드를 검사한다
+- 최신 Homebrew 가 서드파티 tap 을 기본 거부 → `brew trust --formula facebook/fb/idb-companion` 필요.
+  로컬 Mac 은 이미 신뢰돼 있어 **재현 불가능한 CI 전용 차이**
+
+**미해결**: 위 대응 후 재현성(연속 통과) 검증은 아직 진행 중이다.
+
+
 #### ⚠️ 저장소 public 전환 + git 히스토리 재작성 (Mac 재클론 필요)
 
 macOS 러너를 무료로 쓰려고 저장소를 **public 으로 전환**했다(public 은 standard 러너가 분 제한 없이 무료 — macOS 포함).
@@ -54,7 +84,7 @@ README.md 는 최초 커밋에서 한 번 추가되고 수정된 적이 없어 �
 
 ### Added
 
-#### ✅ GitHub Actions CI 도입 — Android 7/7 통과
+#### ✅ GitHub Actions CI 도입 (Android 안정화 진행 중)
 
 `appium-SMDA` 워크플로 구성을 모태로 Android·iOS 를 별도 파일로 분리했다(iOS 실패가 Android 회귀를 붉히지 않도록).
 
