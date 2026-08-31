@@ -61,7 +61,28 @@
 - [ ] **POM 정공법**(웹검토 반영, 2축): `runScript`로 셀렉터 중앙화 + `subflows/login.yaml`로 동작 추출
 - [ ] **`${APP_ID}` 파라미터화** — `${USERNAME}`/`${PASSWORD}` 는 2026-07-23 subflow 추출에서 완료. iOS/멀티앱 대비, `env.example` 준비됨
 - [ ] 크로스플랫폼 구조: 공용 flow는 feature 폴더 루트, 플랫폼 전용은 `android/`·`ios/` 하위 (Maestro 공식 관례)
-- [ ] `template/` 승격 + 축약 README
+- [ ] **Maestro 템플릿 생성** — 계정의 다른 스택은 전부 `템플릿 + 예시` 2단 구성인데
+      **Maestro 만 예시(`maestro_sauceLabs`)는 있고 템플릿이 없다**(2026-08-31 확인).
+      `appium_template` / `cypress-template` / `playwright-template_js` / `playwright_template_py` ↔ 각 예시 저장소.
+
+      **먼저 정할 것 — 별도 저장소 vs 리포 내 디렉터리**
+      - `README.md:94` 의 원래 계획은 리포 내 `template/` + `maestro_sauceLabs/` 2층 구조
+      - 반면 계정 관례는 **별도 저장소**(`*_template`). 다른 프로젝트에 쓰려면 clone 단위가 편하다
+      - 별도 저장소로 갈 경우 이름 관례가 통일돼 있지 않다(`appium_template` 언더바 / `cypress-template` 하이픈) → 하나로 정할 것
+
+      **템플릿에 넣을 것 (앱 비종속, 이미 검증된 자산)**
+      - `.maestro/config.yaml` — flows 글롭 + executionOrder
+      - `.maestro/subflows/login.yaml` — 파라미터화 완료(호출처 3곳), 추출 근거 확보됨
+      - `env.example`, `.gitattributes`, `.editorconfig`, `.gitignore`
+      - `.claude/skills/verify/SKILL.md` — 프로젝트 verify 레시피
+      - **`.github/workflows/` 2종 + `.github/scripts/run-ios-ci.sh`** — Appium 템플릿에 없던 자산.
+        CI 함정 4건(dash / 한 줄씩 실행 / brew trust / profile 필수)이 실측 근거와 함께 주석에 박혀 있어 이식 가치가 크다
+      - 축약 README (Appium 템플릿의 23KB CLAUDE.md 분량은 과함 — README 3장 판단 유지)
+
+      **⚠️ 선행 조건: Android CI 가 연속 통과한 뒤에 할 것.**
+      지금 승격하면 불안정한 워크플로를 다음 프로젝트로 복제하게 된다(`clearState` race 미해결).
+      순서: ① CI race 해결 → ② 담기→장바구니 subflow 추출(Rule of Three 3번째) → ③ 템플릿 승격.
+      ②를 건너뛰면 승격 후 템플릿·예시 양쪽을 고쳐야 한다.
 
 ## 2026-08-31
 
