@@ -102,32 +102,18 @@ jobs:
           disable-animations: true
           emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none"
           script: |
-            # 중간 스텝 실패를 삼키지 않는다. 이게 없으면 스크립트 종료코드가 마지막 명령
-            # (maestro test)의 것이라, adb install 이 실패해도 그대로 진행되어
-            # "앱 실행 실패"로만 보이고 원인이 설치 실패였다는 사실이 가려진다.
-            # pipefail 은 쓰지 않는다. 이 script 블록은 bash 가 아니라 /usr/bin/sh(dash)로
-            # 실행되어 "set: Illegal option -o pipefail" 로 즉시 죽는다(실측).
-            # 파이프가 없으므로 -e -u 만으로 목적(중간 실패 감지)은 충족된다.
-            set -eu
-
-            # GITHUB_PATH 는 스텝 경계에서 적용되지만, 이 스크립트는 액션 내부에서 실행되므로
-            # 방어적으로 한 번 더 PATH 를 잡아준다(설치 경로가 비면 즉시 실패하는 편이 낫다).
-            export PATH="$HOME/.maestro/bin:$PATH"
+            # 주의: 이 script 블록은 통짜 셸 스크립트가 아니라 '한 줄씩' 별개의
+            # /usr/bin/sh -c 로 실행된다(Actions 33357116303 로그로 실측). 그래서
+            #   - 백슬래시 줄바꿈(\)이 이어지지 않는다 → maestro 명령은 반드시 한 줄로 쓴다
+            #   - set/export 는 다음 줄로 전파되지 않는다 (그래서 여기 두지 않는다)
+            #   - 대신 액션이 각 줄의 종료코드를 검사하므로 중간 실패는 그대로 잡힌다
+            # PATH 는 앞 스텝의 GITHUB_PATH 등록으로 이미 잡혀 있고, 아래 버전 출력이 그 가드다.
             maestro --version
-
             adb install -r "$APK_PATH"
-
-            # --exclude-tags ios 가 필수다.
-            # config.yaml 의 글롭이 e2e/*.yaml 이라 iOS 전용 checkout_ios.yaml 까지 잡히는데,
-            # 그 플로우는 appId 가 iOS 번들ID(com.saucelabs.mydemo.app.ios)라 Android 에뮬에서 반드시 실패한다.
+            # --exclude-tags ios 가 필수다. config.yaml 글롭이 e2e/*.yaml 이라 iOS 전용
+            # checkout_ios.yaml 까지 잡히는데, appId 가 iOS 번들ID 라 Android 에뮬에서 반드시 실패한다.
             # 게다가 config 의 continueOnFailure 가 false 라 거기서 전체 실행이 멈춘다.
-            maestro test \
-              --exclude-tags ios \
-              --format JUNIT \
-              --output report.xml \
-              --debug-output artifacts \
-              --flatten-debug-output \
-              .maestro
+            maestro test --exclude-tags ios --format JUNIT --output report.xml --debug-output artifacts --flatten-debug-output .maestro
 
       - name: "리포트 업로드 (성공 실패 무관)"
         if: ${{ !cancelled() }}
