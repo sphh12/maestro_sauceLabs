@@ -110,6 +110,11 @@ jobs:
             # PATH 는 앞 스텝의 GITHUB_PATH 등록으로 이미 잡혀 있고, 아래 버전 출력이 그 가드다.
             maestro --version
             adb install -r "$APK_PATH"
+            # ANR/크래시 시스템 다이얼로그를 끈다.
+            # CI 에뮬레이터는 콜드부트 직후 부하가 커서 Pixel Launcher 가 ANR 을 내는데,
+            # "Pixel Launcher isn't responding" 다이얼로그가 앱 위를 덮으면 Maestro 가
+            # 'View menu' 를 보지 못해 전 플로우가 한꺼번에 실패한다(런 33362801420 스크린샷으로 확인).
+            adb shell settings put global hide_error_dialogs 1
             # --exclude-tags ios 가 필수다. config.yaml 글롭이 e2e/*.yaml 이라 iOS 전용
             # checkout_ios.yaml 까지 잡히는데, appId 가 iOS 번들ID 라 Android 에뮬에서 반드시 실패한다.
             # 게다가 config 의 continueOnFailure 가 false 라 거기서 전체 실행이 멈춘다.
