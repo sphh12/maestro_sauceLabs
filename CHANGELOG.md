@@ -11,6 +11,38 @@
 > 우선순위 그룹을 유지한다(Added/Fixed 보다 순서 정보가 유용하다).
 
 ### 🔧 견고화 — E2E 신뢰도 (최우선)
+- [ ] **Android CI `clearState` race 해결 (최우선, 다음 세션 이어서)**
+      원인은 확정됐다(2026-08-31 「원인 확정」 항목의 logcat 참조). 이전 태스크 제거 타임아웃이
+      방금 띄운 새 프로세스를 죽인다. 대기를 늘려도 소용없다 — 프로세스가 죽어 있다.
+      **후보 4개 모두 `maestro check-syntax` 통과 확인함**(문법 리스크 없음):
+      ```yaml
+      # a) 명시적 정지 후 초기화
+      - stopApp
+      - clearState
+      - launchApp
+      # b) a + 정착 대기 (race 를 직접 겨냥 — 유력)
+      - stopApp
+      - clearState
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - launchApp
+      # c) killApp 변형
+      - killApp
+      - clearState
+      - launchApp
+      # d) 단일 커맨드에 stopApp 옵션
+      - launchApp:
+          clearState: true
+          stopApp: true
+      ```
+      적용 대상은 `launchApp` 사이트 **9곳**(login-negative 는 3곳).
+      ⚠️ `clearState` 순서를 바꾸는 것은 **테스트 격리 방식 변경**이므로 로컬 재검증도 필요.
+      ⚠️ **판정 기준**: 실패가 확률적(런당 0~2개)이라 1회 통과는 근거가 못 된다. **최소 3회 연속 7/7**.
+      야간 cron(KST 04:20)이 매일 데이터를 쌓으므로 재현율은 무료로 얻을 수 있다.
+- [ ] **CI 워크플로에 `paths-ignore` 추가 검토** — 현재 문서만 고쳐도 8분짜리 에뮬레이터 런이 돈다.
+      단 flow·워크플로 변경은 반드시 트리거되어야 하므로 경로 목록을 신중히 정할 것.
+- [ ] **작업 브랜치와 `main` 양쪽 push 로 런이 2개 뜨는 문제** — concurrency 그룹이 `ref_name` 기준이라
+      서로 취소하지 않는다. `main` 은 검증된 커밋만 fast-forward 받으므로 push 트리거에서 빼는 것이 후보.
 - [ ] **iOS CI 실패 원인 규명 (최우선)** — `checkout_ios` 가 CI 에서 `Assertion is false: "Card Number*" is visible` 로 실패.
       배송 폼 좌표 탭 후 `To Payment` → 결제 화면 전환이 안 됨. **아티팩트에 실패 스크린샷 있음**(런 33358285987).
       로컬은 3/3 통과하므로 CI 환경 차이(키보드 상태·스크롤 위치·타이밍) 의심. 추정 말고 스크린샷으로 확정할 것.
@@ -48,12 +80,34 @@ CI 도입 직후 Android 회귀가 **4회 실행 중 1회만 통과**했다. 실
    에뮬레이터 자원을 올린 회차에서 실패가 `catalog-sort` 로 옮겨갔다.
 3. **에뮬레이터 자원 부족** — RAM 4G→6G, 코어 2→3. **효과 없음**(실패 위치만 이동).
    원인 대응은 아니었으나 보조로 유지한다.
-4. **RN 번들 초기 렌더링 타임아웃** (실제 원인) — 7개 플로우 전부가 `launchApp: clearState`
-   직후 곧바로 `"View menu"` 를 검증/탭한다. CI 에서 첫 프레임이 기본 타임아웃을 넘길 때가 있다.
-   → `launchApp` 사이트 **9곳**에 `extendedWaitUntil`(30s) 적용. 로컬은 즉시 통과해 동작 변화 없음.
-   `assertVisible` 에는 `timeout` 속성이 **없다**(`check-syntax` 로 확인: `Unknown Property`).
-   추가로 툴바(`View menu`)는 상품 그리드보다 먼저 뜰 수 있어, `productIV` 를 탭하는
-   `checkout`·`cart-manage` 는 그 요소를 별도로 기다린다(코드리뷰 지적 반영).
+4. **검증 타임아웃이 짧음** — `launchApp` 사이트 **9곳**에 `extendedWaitUntil`(30s) 적용.
+   `assertVisible` 에는 `timeout` 속성이 **없다**(`check-syntax` 로 확인: `Unknown Property`) →
+   유효한 구성은 `extendedWaitUntil`. 툴바(`View menu`)가 상품 그리드보다 먼저 뜰 수 있어
+   `productIV` 를 탭하는 `checkout`·`cart-manage` 는 그 요소를 별도로 기다린다(코드리뷰 지적).
+   **효과 없음** — 실패까지의 시간만 19초→31초로 늘었다(대기는 정상 작동). 이 변경은 CI 내성
+   측면에서 `assertVisible` 보다 나으므로 유지한다.
+
+#### 🔎 원인 확정 — `clearState` 태스크 정리와 새 프로세스 실행의 race (미해결)
+
+위 4번이 실패한 것이 결정적 단서였다. 30초를 기다려도 안 된다는 건 "느린" 게 아니라
+**기다릴 대상이 죽었다**는 뜻이다. 아티팩트의 `logs/device-logcat.txt` 에 그대로 찍혀 있다
+(런 33368902202, `catalog-sort`):
+
+```
+07:38:28.671  Force stopping com.saucelabs.mydemoapp.android   ← clearState: true 의 pm clear
+07:38:28.705  START SplashActivity                             ← Maestro 가 앱 실행 (34ms 뒤)
+07:38:28.724  Start proc 7784 for SplashActivity
+07:38:28.757  Destroy timeout of remove-task, attempt to kill Task#13
+07:38:28.757  Killing 7784: ... (adj -10000): remove task      ← 방금 띄운 프로세스를 죽인다
+07:38:38.727  Process ... 7784 ... failed to attach
+```
+
+`clearState` 가 이전 태스크(#13) 제거를 예약하는데 Maestro 가 34ms 뒤 새 프로세스를 띄우고,
+이어서 이전 태스크의 제거 타임아웃이 발동해 **같은 앱이라는 이유로 새 프로세스를 죽인다.**
+그래서 화면이 백지로 남고 어떤 대기로도 해결되지 않는다.
+
+로컬(macOS/회사 Win)에서 3/3 통과하는 이유도 이것으로 설명된다 — 머신이 빨라
+태스크 제거가 실행보다 먼저 끝난다. **CI 에서만 재현되는 종류의 결함이다.**
 
 **CI 실측으로만 드러난 함정** — 문서로는 알 수 없고 로그로만 확인된 것들:
 - `android-emulator-runner` 의 `script:` 는 bash 가 아니라 **dash** 로 실행 → `set -o pipefail` 즉사
@@ -62,7 +116,8 @@ CI 도입 직후 Android 회귀가 **4회 실행 중 1회만 통과**했다. 실
 - 최신 Homebrew 가 서드파티 tap 을 기본 거부 → `brew trust --formula facebook/fb/idb-companion` 필요.
   로컬 Mac 은 이미 신뢰돼 있어 **재현 불가능한 CI 전용 차이**
 
-**미해결**: 위 대응 후 재현성(연속 통과) 검증은 아직 진행 중이다.
+**현재 상태**: Android CI 는 **아직 불안정**하다(최근 런 2/7 실패). 원인은 확정됐으나 대응은 미검증.
+`hide_error_dialogs`(ANR) 만이 검증된 유효 대응이다.
 
 
 #### ⚠️ 저장소 public 전환 + git 히스토리 재작성 (Mac 재클론 필요)
