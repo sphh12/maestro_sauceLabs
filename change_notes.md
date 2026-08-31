@@ -2,6 +2,48 @@
 
 > 최신 작업이 위로 옵니다.
 
+## 2026-08-31
+
+### ⚠️ 저장소 public 전환 + git 히스토리 재작성 (Mac 재클론 필요)
+
+macOS 러너를 무료로 쓰려고 저장소를 **public 으로 전환**했다(public 은 standard 러너가 분 제한 없이 무료 — macOS 포함).
+
+전환 전 공개 부적합 정보를 전수 점검했다. 추적 파일 21개 전문 + 전 브랜치 17커밋 + **히스토리에 존재했던 모든 blob** 을 스캔:
+- 토큰·키 패턴 0건 / 커밋 author 는 개인 gmail(회사 메일 아님) / 히스토리에서 삭제된 파일 없음
+- 자격증명은 전부 SauceLabs 공개 데모 값, 카드번호는 범용 테스트 번호
+- **발견 1건**: `README.md:155` 에 사내 시스템명 1건과 내부 파일명 1건 (public 저장소라 구체 문자열은 기재하지 않음)
+
+README.md 는 최초 커밋에서 한 번 추가되고 수정된 적이 없어 블롭이 1개뿐이라, `git filter-repo --replace-text` 로 깔끔히 제거했다.
+- 백업 번들 생성 → 치환 1회 매칭 사전 검증 → 재작성 → **백업과 diff 대조(1 file, 1 line)** → force-push
+- 17개 커밋 SHA 전부 변경. **집 Mac 클론은 `git pull` 이 안 되므로 재클론 필요**
+  ```bash
+  cd ~/code && rm -rf maestro_sauceLabs && git clone https://github.com/sphh12/maestro_sauceLabs.git
+  ```
+- `main` 을 작업 브랜치로 fast-forward. 기본 브랜치에 README 만 있으면 **수동 실행 버튼·cron 이 동작하지 않기 때문**
+
+### ✅ GitHub Actions CI 도입 — Android 7/7 통과
+
+`appium-SMDA` 워크플로 구성을 모태로 Android·iOS 를 별도 파일로 분리했다(iOS 실패가 Android 회귀를 붉히지 않도록).
+
+**Android** (`android-regression.yml`) — push/PR/수동/야간(KST 04:20), `--exclude-tags ios`
+```
+[Passed] app-launch(13s) login(54s) login-negative(58s) cart-manage(23s)
+         catalog-sort(27s) logout(38s) checkout(1m39s)
+7/7 Flows Passed in 5m 11s   (전체 런 7분 30초, 아티팩트 1.05MB)
+```
+push 마다 smoke 만 돌릴지 검토했으나, 시간의 대부분이 에뮬레이터 부팅(약 40초)과 환경 준비라 전체를 돌려도 4분 차이뿐이고 public 이라 분 제한도 없어 **전 트리거 전체 실행**으로 정했다.
+
+**iOS** (`ios-regression.yml` + `.github/scripts/run-ios-ci.sh`) — 수동/야간(KST 04:50)
+- 러너에 **iPhone 17(iOS 26.5) 실재 확인** — 좌표 보정 기준 기종이라 없으면 즉시 실패하도록 가드를 넣었는데 통과했다
+- `.app` 은 `Payload/` 하위에 있어 파일명 하드코딩 대신 `find` 탐색이 맞았다
+- **미해결**: `checkout_ios (3m 32s) Assertion is false: "Card Number*" is visible` — 배송 폼 좌표 탭 후 결제 화면 전환 실패. CI 배관이 아니라 flow 문제이며 아티팩트에 실패 스크린샷 있음
+
+**CI 실측으로만 드러난 함정 4건** (문서로는 알 수 없고 로그로만 확인됨)
+1. `android-emulator-runner` 의 `script:` 는 bash 가 아니라 **dash** 로 실행 → `set -o pipefail` 즉사
+2. 그 `script:` 는 통짜 스크립트가 아니라 **한 줄씩 별개의 `sh -c`** 로 실행 → 백슬래시 줄바꿈 불가, `set`/`export` 가 다음 줄로 전파되지 않음. 대신 액션이 각 줄 종료코드를 검사한다
+3. 최신 Homebrew 가 서드파티 tap 을 기본 거부 → `brew trust --formula facebook/fb/idb-companion` 필요. 로컬 Mac 은 이미 신뢰돼 있어 **재현 불가능한 CI 전용 차이**
+4. `profile: pixel_6` 생략 시 기본 320x640 으로 생성되어 카탈로그가 깨진다(appium 회귀 실측) — 우리 flow 도 `productIV` 상세 진입에 의존하므로 동일하게 사망
+
 ## 2026-07-23
 
 ### ✅ Tier1 회귀 4종 + 로그인 subflow 추출 (Android, subagent-driven)

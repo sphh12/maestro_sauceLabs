@@ -33,10 +33,10 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Maestro 는 JVM 기반이라 JDK 가 없으면 CLI 자체가 뜨지 않는다.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: "temurin"
           java-version: "17"
@@ -44,7 +44,7 @@ jobs:
       # fb-idb 용 인터프리터를 3.10 으로 고정한다.
       # 러너 기본 python3 는 Homebrew Python 이라 PEP 668 로 pip install 이 거부되고,
       # 신 버전 파이썬에서는 asyncio 이슈로 idb 런타임이 죽는다(로컬에서 실측된 문제).
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.10"
 
@@ -74,7 +74,7 @@ jobs:
 
       - name: "리포트 업로드 (성공 실패 무관)"
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "maestro-report-ios"
           path: |

@@ -9,6 +9,8 @@
 - [x] **Tier1 회귀 4종 (Android, 2026-07-23) — subagent-driven, 4/4 실기 통과**
   - 네거티브 로그인(필수입력 누락 3케이스) / 카탈로그 정렬 4종 / 장바구니 수량·삭제 / 로그아웃
 - [x] **로그인 subflow 추출**(`subflows/login.yaml`, USERNAME/PASSWORD 파라미터화) + `smoke/login`·`e2e/checkout` 리팩터링(재검증 통과) — stage 3 "POM 정공법"의 subflow 축 선반영
+- [x] **CI/CD 연동 — GitHub Actions (2026-08-31)**: 저장소 public 전환 후 Android·iOS 워크플로 분리 구축.
+      **Android 7/7 통과(5m11s, 전체 런 7m30s)**. iOS 는 배관 전부 통과했으나 flow 에서 실패(아래 참조).
 
 ## 🔜 다음
 - [ ] **담기→장바구니 시퀀스 subflow 추출** — `cart-manage`·`e2e/checkout`에 중복(Task7 리뷰 발견). checkout 회귀 위험 있어 신중히
@@ -16,6 +18,9 @@
 - [ ] Tier2 (상품상세 색상·수량, 다중 담기·합계, 그리드/리스트 뷰토글, Reset App State)
 
 ## 🔧 견고화 (E2E 신뢰도)
+- [ ] **iOS CI 실패 원인 규명 (최우선)** — `checkout_ios` 가 CI 에서 `Assertion is false: "Card Number*" is visible` 로 실패.
+      배송 폼 좌표 탭 후 `To Payment` → 결제 화면 전환이 안 됨. **아티팩트에 실패 스크린샷 있음**(런 33358285987).
+      로컬은 3/3 통과하므로 CI 환경 차이(키보드 상태·스크롤 위치·타이밍) 의심. 추정 말고 스크린샷으로 확정할 것.
 - [ ] **iOS 키보드 우회 개선** — 현재 `idb` Escape 루프 + 좌표 탭에 의존. 개선안:
       (a) 실기기 또는 포커스된 Simulator 창에서 하드웨어 키보드 연결 시 우회 불필요한지 검토,
       (b) name 없는 입력란에 접근성 id 부여 가능한지(앱측) 확인해 좌표 탭 제거,
@@ -45,4 +50,7 @@
 - iOS: `.maestro/e2e/run_checkout_ios.sh <SIM_UDID>` (idb Escape 루프 포함, `maestro test` 단독으론 실패)
   - 전제: `idb-companion`(brew) + `fb-idb`(python3.10) + 시뮬 부팅 + 앱 설치
 - 태그 실행: `maestro test --include-tags e2e .maestro`
+- **CI**: `.github/workflows/` — Android(push/PR/수동/야간 KST 04:20) · iOS(수동/야간 KST 04:50)
+  - Actions 탭 수동 실행 버튼과 cron 은 **기본 브랜치(main)의 파일만** 동작 → 작업 브랜치 작업 후 main 을 fast-forward 할 것
+  - 에뮬 `script:` 는 dash 로 **한 줄씩** 실행됨 — 백슬래시 줄바꿈·`set`/`export` 전파 안 됨(주석 참고)
 - 셀렉터 라이브 확인: `maestro studio` / `maestro hierarchy`
