@@ -1,0 +1,138 @@
+# Android 회귀 CI — push / PR / 수동 실행 / 야간 스케줄로 Maestro 플로우를 에뮬레이터에서 실행하고
+# JUnit 리포트와 디버그 산출물을 아티팩트로 업로드한다.
+# iOS 는 macOS 러너 + idb 의존이라 별도 워크플로로 분리할 예정(여기서는 태그로 제외).
+name: "[Android] Maestro - My Demo App"
+# 실행 이력(런) 제목. 스케줄·수동 실행은 커밋 맥락이 없어 GitHub이 워크플로 이름으로 폴백하는데,
+# 그러면 목록에서 모든 런이 같은 제목으로 보인다. 트리거별로 제목을 지정해 구분한다.
+# push/PR 은 빈 문자열로 둬 GitHub 기본값(커밋 메시지·PR 제목)을 그대로 쓴다.
+run-name: "${{ github.event_name == 'schedule' && '[Daily] Regression Test' || github.event_name == 'workflow_dispatch' && '[Manual] Regression Test' || '' }}"
+
+on:
+  # 작업 브랜치(maestro_saucelabs)에서도 돌아야 하므로 main 과 함께 지정한다.
+  push:
+    branches: [main, maestro_saucelabs]
+  pull_request:
+    branches: [main]
+  # Actions 탭에서 수동 실행 (기본 브랜치의 파일만 버튼이 노출됨)
+  workflow_dispatch:
+  # 야간 회귀 — 코드 변경이 없어도 매일 1회 돌려 플레이키와 러너/의존성 드리프트를 감지한다.
+  # 주의: APK 는 아래 env 에서 2.2.0 으로 고정돼 있으므로 '앱 업데이트'는 여기서 잡히지 않는다.
+  #       앱 버전 상향은 셀렉터 재검증이 필요한 수동 작업이다(플로우가 productIV·removeBt 등에 묶여 있음).
+  # cron 은 UTC 기준이며 기본 브랜치(main)의 파일만 동작한다.
+  #   '20 19 * * *' = UTC 19:20 = KST 04:20 (다음 날 새벽)
+  #   같은 계정의 appium 회귀(KST 03:20 / 03:50)와 겹치지 않게 시간을 띄운다.
+  #   정시(:00)는 GitHub 부하가 몰려 밀리므로 일부러 20분으로 둔다.
+  schedule:
+    - cron: "20 19 * * *"
+
+# 에뮬레이터 런은 비싸므로 같은 브랜치의 이전 실행은 취소한다
+concurrency:
+  # push(ref_name="maestro_saucelabs")와 PR(head_ref="maestro_saucelabs")이 같은 그룹에 묶이도록
+  # ref 대신 ref_name 을 쓴다. github.ref 를 쓰면 형식이 달라(refs/heads/... vs refs/pull/N/merge)
+  # 같은 커밋에 대해 에뮬레이터 잡이 2개 뜨고도 중복 제거가 되지 않는다.
+  group: "${{ github.workflow }}-${{ github.head_ref || github.ref_name }}"
+  # 야간 런은 취소 대상에서 제외한다. main 에 push 가 들어오면 진행 중인 스케줄 런이 취소되고,
+  # 아래 업로드 스텝의 if 조건(!cancelled())에 걸려 리포트조차 남지 않는다.
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+env:
+  # 로컬 러너(.maestro/e2e/run_checkout_ios.sh)와 동일하게 애널리틱스를 끈다.
+  # 러너 홈은 매번 새 상태라 첫 실행이 동의 처리를 거치게 된다.
+  MAESTRO_CLI_NO_ANALYTICS: "1"
+  # 대상 앱은 공개 테스트용 — apps/ 가 gitignore 라 CI 에서 릴리스에서 받는다.
+  # 로컬 검증에 쓴 것과 같은 버전으로 고정한다(appId·셀렉터가 버전에 묶여 있음).
+  APK_URL: "https://github.com/saucelabs/my-demo-app-android/releases/download/2.2.0/mda-2.2.0-25.apk"
+  APK_PATH: "apps/android/mda-2.2.0-25.apk"
+
+jobs:
+  android:
+    name: "Android 에뮬레이터 회귀"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Maestro 는 JVM 기반이라 JDK 가 없으면 CLI 자체가 뜨지 않는다.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: "Maestro CLI 설치"
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          # 설치 경로를 이후 스텝의 PATH 에 등록한다(이 스텝 안에서는 아직 적용되지 않음).
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: "Maestro 버전 확인"
+        run: maestro --version
+
+      - name: "대상 앱 APK 다운로드"
+        run: |
+          mkdir -p apps/android
+          curl -fsSL -o "$APK_PATH" "$APK_URL"
+          # ZIP 매직(PK) 검증 — 차단 페이지 등이 APK 로 저장되는 것을 막는다
+          if [ "$(head -c 2 "$APK_PATH")" != "PK" ]; then
+            echo "다운로드 파일이 APK(ZIP)가 아니다"
+            exit 1
+          fi
+          ls -l apps/android/
+
+      - name: "KVM 활성화 (에뮬레이터 하드웨어 가속)"
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: "에뮬레이터 부팅 후 회귀 실행"
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          # profile 을 생략하면 기본 디바이스가 320x640 으로 생성된다.
+          # 그 화면에서는 카탈로그에 상품이 1개만 렌더링되고 상품 이미지 탭이 상세로 진입하지 못한다
+          # (appium 회귀에서 실측: 상세를 거치는 테스트 12건 전멸).
+          # 우리 플로우도 productIV index 0 탭으로 상세에 들어가므로 동일하게 깨진다.
+          profile: pixel_6
+          ram-size: "4096M"
+          # 로컬 Pixel_8 에서 /data 가 96% 차 앱 설치가 실패한 적이 있어 여유를 준다.
+          disk-size: "8192M"
+          disable-animations: true
+          emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none"
+          script: |
+            # 중간 스텝 실패를 삼키지 않는다. 이게 없으면 스크립트 종료코드가 마지막 명령
+            # (maestro test)의 것이라, adb install 이 실패해도 그대로 진행되어
+            # "앱 실행 실패"로만 보이고 원인이 설치 실패였다는 사실이 가려진다.
+            set -euo pipefail
+
+            # GITHUB_PATH 는 스텝 경계에서 적용되지만, 이 스크립트는 액션 내부에서 실행되므로
+            # 방어적으로 한 번 더 PATH 를 잡아준다(설치 경로가 비면 즉시 실패하는 편이 낫다).
+            export PATH="$HOME/.maestro/bin:$PATH"
+            maestro --version
+
+            adb install -r "$APK_PATH"
+
+            # --exclude-tags ios 가 필수다.
+            # config.yaml 의 글롭이 e2e/*.yaml 이라 iOS 전용 checkout_ios.yaml 까지 잡히는데,
+            # 그 플로우는 appId 가 iOS 번들ID(com.saucelabs.mydemo.app.ios)라 Android 에뮬에서 반드시 실패한다.
+            # 게다가 config 의 continueOnFailure 가 false 라 거기서 전체 실행이 멈춘다.
+            maestro test \
+              --exclude-tags ios \
+              --format JUNIT \
+              --output report.xml \
+              --debug-output artifacts \
+              --flatten-debug-output \
+              .maestro
+
+      - name: "리포트 업로드 (성공 실패 무관)"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: "maestro-report"
+          path: |
+            report.xml
+            artifacts/
+          retention-days: 30
+          if-no-files-found: warn

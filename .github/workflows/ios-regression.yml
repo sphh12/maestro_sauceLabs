@@ -1,0 +1,84 @@
+# iOS 회귀 CI — macOS 러너의 시뮬레이터에서 Maestro iOS 플로우를 실행한다.
+#
+# Android 워크플로와 파일을 분리한 이유: iOS 는 실패 지점이 많다(시뮬 기종·idb 설치·
+# 소프트키보드 우회·좌표 탭). 같은 워크플로에 job 으로 붙이면 iOS 문제로 Android 회귀까지 붉어진다.
+# 같은 이유로 push/PR 트리거도 일부러 넣지 않는다 — 커밋마다 붉어지면 신호가 아니라 소음이 된다.
+name: "[iOS] Maestro - My Demo App"
+run-name: "${{ github.event_name == 'schedule' && '[Daily] Regression Test' || github.event_name == 'workflow_dispatch' && '[Manual] Regression Test' || '' }}"
+
+on:
+  # Actions 탭 수동 실행 (기본 브랜치의 파일만 버튼이 노출됨)
+  workflow_dispatch:
+  # 야간 회귀 — cron 은 UTC 기준이며 기본 브랜치(main)의 파일만 동작한다.
+  #   '50 19 * * *' = UTC 19:50 = KST 04:50 (다음 날 새벽)
+  #   Android(KST 04:20)와 30분 간격을 둬 러너 사용이 겹치지 않게 한다.
+  schedule:
+    - cron: "50 19 * * *"
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref_name }}"
+  # 야간 런은 취소 대상에서 제외한다(취소되면 !cancelled() 조건에 걸려 리포트도 안 남는다).
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+env:
+  MAESTRO_CLI_NO_ANALYTICS: "1"
+  # 대상 앱은 공개 테스트용 — apps/ 가 gitignore 라 CI 에서 릴리스에서 받는다.
+  IOS_APP_URL: "https://github.com/saucelabs/my-demo-app-ios/releases/download/2.2.2/SauceLabs-Demo-App.Simulator.zip"
+  IOS_APP_PATH: "apps/ios/SauceLabs-Demo-App.Simulator.zip"
+
+jobs:
+  ios:
+    name: "iOS 시뮬레이터 회귀"
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Maestro 는 JVM 기반이라 JDK 가 없으면 CLI 자체가 뜨지 않는다.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # fb-idb 용 인터프리터를 3.10 으로 고정한다.
+      # 러너 기본 python3 는 Homebrew Python 이라 PEP 668 로 pip install 이 거부되고,
+      # 신 버전 파이썬에서는 asyncio 이슈로 idb 런타임이 죽는다(로컬에서 실측된 문제).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: "Maestro CLI 설치"
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: "Maestro / Xcode 버전 확인"
+        run: |
+          maestro --version
+          xcodebuild -version
+
+      - name: "대상 앱 다운로드"
+        run: |
+          mkdir -p apps/ios
+          curl -fsSL -o "$IOS_APP_PATH" "$IOS_APP_URL"
+          # ZIP 매직(PK) 검증 — 차단 페이지 등이 앱으로 저장되는 것을 막는다
+          if [ "$(head -c 2 "$IOS_APP_PATH")" != "PK" ]; then
+            echo "다운로드 파일이 ZIP 이 아니다"
+            exit 1
+          fi
+          ls -l apps/ios/
+
+      - name: "시뮬레이터 부팅 후 iOS 플로우 실행"
+        run: bash .github/scripts/run-ios-ci.sh
+
+      - name: "리포트 업로드 (성공 실패 무관)"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: "maestro-report-ios"
+          path: |
+            report-ios.xml
+            artifacts-ios/
+          retention-days: 30
+          if-no-files-found: warn
