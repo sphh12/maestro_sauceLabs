@@ -82,6 +82,11 @@ echo "::group::idb 준비 (소프트키보드 우회용)"
 # 이 앱은 키보드를 내리는 표준 동작이 없고 'To Payment'/'Review Order' 버튼이 키보드 뒤에 고정된다.
 # Maestro 의 hideKeyboard 로도 안 닫혀서, HID Escape(keycode 41) 를 반복 전송해 계속 내려둔다.
 brew tap facebook/fb >/dev/null
+# 최신 Homebrew 는 서드파티 tap 의 formula 를 기본적으로 거부한다(실측):
+#   "Refusing to load formula facebook/fb/idb-companion from untrusted tap facebook/fb."
+# 로컬 Mac 은 설치 시점에 이미 신뢰돼 있어 드러나지 않는 CI 전용 차이다.
+# tap 전체가 아니라 필요한 formula 만 좁게 신뢰한다.
+brew trust --formula facebook/fb/idb-companion
 brew install idb-companion
 # fb-idb 는 워크플로의 setup-python(3.10) 인터프리터에 설치된다.
 # 러너 기본 python3(Homebrew) 를 쓰면 PEP 668 externally-managed 에러가 나고,
