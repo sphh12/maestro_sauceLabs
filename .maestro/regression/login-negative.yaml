@@ -17,6 +17,9 @@ tags:
 # ── 케이스 ①: 사용자명·비밀번호 둘 다 빈 값 → 제출 ──
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: "View menu"
+    timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
 - tapOn: "View menu"
 - tapOn: "Log In"
 - assertVisible: "Tap to login with given credentials"
@@ -27,6 +30,9 @@ tags:
 # ── 케이스 ②: 사용자명 빈 값, 비밀번호만 입력 → 제출 ──
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: "View menu"
+    timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
 - tapOn: "View menu"
 - tapOn: "Log In"
 - assertVisible: "Tap to login with given credentials"
@@ -41,6 +47,9 @@ tags:
 # ── 케이스 ③: 사용자명만 입력, 비밀번호 빈 값 → 제출 ──
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: "View menu"
+    timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
 - tapOn: "View menu"
 - tapOn: "Log In"
 - assertVisible: "Tap to login with given credentials"

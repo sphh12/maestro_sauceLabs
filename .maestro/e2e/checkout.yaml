@@ -10,7 +10,9 @@ tags:
 # ── [단계 1] 상품을 장바구니에 담기 ────────────────────────────────
 - launchApp:
     clearState: true
-- assertVisible: "View menu"          # 카탈로그(Products) 도착 확인
+- extendedWaitUntil:
+    visible: "View menu"
+    timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과) / 카탈로그(Products) 도착 확인
 - tapOn:
     id: "com.saucelabs.mydemoapp.android:id/productIV"
     index: 0

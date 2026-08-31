@@ -7,6 +7,9 @@ tags:
     clearState: true
 
 # 로그인 화면 진입 (진입 경로는 이 flow 책임)
+- extendedWaitUntil:
+    visible: "View menu"
+    timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
 - tapOn: "View menu"
 - tapOn: "Log In"
 - assertVisible: "Tap to login with given credentials"

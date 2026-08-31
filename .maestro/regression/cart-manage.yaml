@@ -26,7 +26,9 @@ tags:
 
 - launchApp:
     clearState: true
-- assertVisible: "View menu"   # 카탈로그(Products) 도착 확인
+- extendedWaitUntil:
+    visible: "View menu"
+    timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과) / 카탈로그(Products) 도착 확인
 
 # ── [단계 1] 상품 담기 ──────────────────────────────────────────
 - tapOn:
