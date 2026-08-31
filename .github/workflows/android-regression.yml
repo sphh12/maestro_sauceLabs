@@ -96,7 +96,12 @@ jobs:
           # (appium 회귀에서 실측: 상세를 거치는 테스트 12건 전멸).
           # 우리 플로우도 productIV index 0 탭으로 상세에 들어가므로 동일하게 깨진다.
           profile: pixel_6
-          ram-size: "4096M"
+          # checkout(7번째 플로우)이 CI 에서 재현적으로 실패했다 — 앞선 6개는 통과하는데
+          # 마지막 콜드스타트에서 화면이 백지로 남아 'View menu' 검증이 타임아웃(런 33365449403·33365862119).
+          # RN 번들 초기 렌더링이 자원 압박으로 늦어지는 것으로 보고, flow 는 건드리지 않고
+          # 에뮬레이터 자원부터 올려 본다(RAM 4G→6G, 코어 2→3). 러너는 4 vCPU / 16GB.
+          ram-size: "6144M"
+          cores: 3
           # 로컬 Pixel_8 에서 /data 가 96% 차 앱 설치가 실패한 적이 있어 여유를 준다.
           disk-size: "8192M"
           disable-animations: true
