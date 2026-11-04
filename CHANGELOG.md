@@ -111,6 +111,24 @@
 **코드 리뷰 반영**: subflow 를 Android 전용으로 명시, catalog-sort 주석 정정.
 고정 대기·`stopApp: false`·경고 로그·시간 증가는 위 실측 근거로 유지했다.
 
+#### ✅ 부팅 직후 런처 ANR 다이얼로그가 남아 전 플로우가 실패하던 문제
+
+**발견**: race 수정을 `main` 에 반영한 직후 main push 런(41783723860)이 **6/6 전멸**했다(같은 커밋의 작업 브랜치 런은 7/7).
+logcat 상 새 앱 종료는 0회 — race 가 아니다. 스크린샷: 앱은 정상(Products)인데 **"Pixel Launcher isn't responding"** 이 덮고 있다.
+- 지난 30일 Android 실패 24건 중 **4건이 이 유형**(app-launch 부터 전멸, 39338258560·41359476041 스크린샷 동일), 나머지 20건이 race 형.
+- 원인: `hide_error_dialogs 1` 은 **새로 뜨는** 다이얼로그만 막는다. 부팅 중(로그상 `adb: device offline` 구간) 런처가 이미 ANR 을 내
+  설정 전에 떠 있던 다이얼로그는 그대로 남는다. 2026-08-31 의 ANR 대응이 '대부분'만 막던 이유.
+
+**수정**: `subflows/launch-clean.yaml` 의 `launchApp` 뒤에 조건부 닫기 추가 — `when: visible: ".*isn.t responding"` 이면 `Wait` 탭.
+- `Close app` 은 런처를 죽여 재시작·재 ANR 을 부를 수 있어 창만 닫는 `Wait` 를 택했다. 다이얼로그가 없으면 건너뛴다.
+- 아포스트로피(' / ’) 차이를 피하려고 `isn.t` 로 매칭.
+
+**검증 (로컬 재현)** — root 가능한 Pixel_6(API 34 google_apis x86_64, CI 와 같은 이미지)에서 런처를 `kill -STOP` 후 탭 2회 → 같은 다이얼로그 재현.
+- 수정 전 subflow: app-launch `"View menu" is visible` **FAILED** (CI 와 같은 시그니처)
+- 수정 후 subflow: `Tap on "Wait"` → `View menu` **COMPLETED**, 다이얼로그 0개
+- 다이얼로그 없는 평상시 전체 실행: **7/7**(Wait 탭 0회 — 조건 블록 정상 건너뜀, 새 앱 종료 0회)
+- 참고: 런처를 `kill -CONT` 로 되살리면 다이얼로그가 저절로 닫힌다. CI 에서 3분 넘게 남은 것은 런처가 그동안 회복하지 못했다는 뜻.
+
 ## 2026-08-31
 
 ### Changed

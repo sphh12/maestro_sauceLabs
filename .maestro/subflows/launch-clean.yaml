@@ -26,3 +26,14 @@ appId: com.saucelabs.mydemoapp.android
 # 한 번 더 걸어 정리 작업을 다시 일으킬 수 있으므로 끈다. 격리는 위 clearState 가 보장한다.
 - launchApp:
     stopApp: false
+
+# 부팅 직후 런처 ANR 다이얼로그("Pixel Launcher isn't responding")가 이미 떠 있으면 닫는다.
+# 워크플로의 hide_error_dialogs 는 '새로 뜨는' 다이얼로그만 막고, 설정 전(부팅 중)에 이미 떠 있던 것은
+# 남아서 앱 화면을 덮는다 → View menu 미발견으로 전 플로우 실패(30일 실패 24건 중 4건, CHANGELOG 2026-11-04).
+# "Close app" 은 런처를 죽여 재시작·재 ANR 을 부를 수 있어 창만 닫는 "Wait" 를 누른다.
+# 아포스트로피가 ' / ’ 어느 쪽이든 맞도록 isn.t 로 매칭한다. 다이얼로그가 없으면 이 블록은 건너뛴다.
+- runFlow:
+    when:
+      visible: ".*isn.t responding"
+    commands:
+      - tapOn: "Wait"
