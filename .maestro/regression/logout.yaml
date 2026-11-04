@@ -5,8 +5,7 @@ tags:
 # 로그아웃 검증 — 로그인(subflow) → 메뉴 → Logout → 확인 다이얼로그 → 로그인 해제 확인
 # ※ Logout Menu Item 탭 시 확인 다이얼로그가 뜬다(실기 확인 완료).
 #   제목 "Log Out" / 메시지 "Are you sure you want to logout" / 버튼 "CANCEL", "LOGOUT"
-- launchApp:
-    clearState: true
+- runFlow: ../subflows/launch-clean.yaml   # 데이터 초기화 후 실행 (CI race 회피 — subflow 주석 참고)
 
 # 로그인 화면 진입 (진입 경로는 이 flow 책임)
 - extendedWaitUntil:

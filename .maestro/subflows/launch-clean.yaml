@@ -1,0 +1,28 @@
+appId: com.saucelabs.mydemoapp.android
+---
+# 재사용 조각: 앱 데이터를 지우고 새로 실행한다 (Android flow 의 시작점).
+# 첫 화면 도착 검증(View menu 등)은 호출하는 flow 가 담당한다.
+# ⚠️ Android 전용 — appId 가 Android 패키지로 고정돼 있다. iOS(checkout_ios)는 이 race 와 무관해
+#    기존 `launchApp: clearState: true` 를 그대로 쓴다.
+#
+# 왜 `launchApp: { clearState: true }` 한 줄로 쓰지 않는가 — CI race (CHANGELOG 2026-11-04):
+#   pm clear(clearState) 는 앱의 이전 태스크 제거를 예약하고, 약 1초 뒤
+#   "Destroy timeout of remove-task" 로 그 태스크의 프로세스를 강제 종료한다.
+#   launchApp 은 pm clear 후 약 0.9초 만에 앱을 띄워, 새 액티비티가 제거 대기 중인
+#   같은 태스크에 들어갔다가 이 강제 종료에 함께 죽는다 → 화면이 백지로 남는다.
+#   (실측: CI 7건 모두 pm clear 후 1.006~1.07초에 타임아웃, 로컬 에뮬레이터에서도 재현)
+#   그래서 초기화와 실행 사이에 제거 타임아웃이 지나갈 시간을 둔다.
+- clearState
+
+# 고정 대기 3초 — Maestro 에는 sleep 커맨드가 없어, 존재하지 않는 요소를 timeout 까지 기다린다.
+# optional: true 라 대기가 끝나면 경고만 남기고 다음 스텝으로 넘어간다(flow 실패 아님).
+# 3초 = 타임아웃(약 1초)의 3배 여유. CI 가 느려져도 타임아웃은 늦게 터질 뿐 앞당겨지지 않는다.
+- extendedWaitUntil:
+    visible: "__wait_for_task_cleanup__"
+    timeout: 3000
+    optional: true
+
+# 앱은 clearState 로 이미 종료돼 있다. 기본값(stopApp: true)이면 실행 직전 force-stop 을
+# 한 번 더 걸어 정리 작업을 다시 일으킬 수 있으므로 끈다. 격리는 위 clearState 가 보장한다.
+- launchApp:
+    stopApp: false

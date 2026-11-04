@@ -14,7 +14,7 @@ tags:
 #   - Maestro 텍스트 매칭은 부분일치가 아니라 전체일치(full match) — probe로 확인
 #     (예: "Fleece Jacket" 부분 문자열은 화면에 "Sauce Labs Fleece Jacket"이 보여도 assertVisible 실패).
 #     따라서 아래 각 상품명은 실측한 전체 타이틀 문자열 그대로 사용하면 다른 variant와 오매칭되지 않는다.
-#   - 정렬은 상태가 유지되므로 launchApp은 1회만, 이후 4종을 순차 적용(각 단계가 이전 단계 상태를 갈아엎으므로
+#   - 정렬은 상태가 유지되므로 앱 실행(launch-clean)은 1회만, 이후 4종을 순차 적용(각 단계가 이전 단계 상태를 갈아엎으므로
 #     상단 상품명이 매번 실제로 바뀌는 것 자체가 정렬 적용의 증거).
 #   - 각 정렬 적용 후 최상단 상품명(실측, 동률 없이 유일하게 확인됨):
 #       Name - Ascending  -> "Sauce Labs Backpack"
@@ -22,8 +22,7 @@ tags:
 #       Price - Ascending -> "Sauce Labs Onesie" ($ 7.99, 최저가 유일)
 #       Price - Descending-> "Sauce Labs Fleece Jacket" ($ 49.99, 동가 variant 여럿 있으나 무-variant 항목이 최상단)
 
-- launchApp:
-    clearState: true
+- runFlow: ../subflows/launch-clean.yaml   # 데이터 초기화 후 실행 (CI race 회피 — subflow 주석 참고)
 - extendedWaitUntil:
     visible: "View menu"
     timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과) / 카탈로그(Products) 도착 확인

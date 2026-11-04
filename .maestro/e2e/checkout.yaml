@@ -8,8 +8,7 @@ tags:
 # ══════════════════════════════════════════════════════════════════
 
 # ── [단계 1] 상품을 장바구니에 담기 ────────────────────────────────
-- launchApp:
-    clearState: true
+- runFlow: ../subflows/launch-clean.yaml   # 데이터 초기화 후 실행 (CI race 회피 — subflow 주석 참고)
 - extendedWaitUntil:
     visible: "View menu"
     timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과) / 카탈로그(Products) 도착 확인

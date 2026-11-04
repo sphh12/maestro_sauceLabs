@@ -11,34 +11,8 @@
 > 우선순위 그룹을 유지한다(Added/Fixed 보다 순서 정보가 유용하다).
 
 ### 🔧 견고화 — E2E 신뢰도 (최우선)
-- [ ] **Android CI `clearState` race 해결 (최우선, 다음 세션 이어서)**
-      원인은 확정됐다(2026-08-31 「원인 확정」 항목의 logcat 참조). 이전 태스크 제거 타임아웃이
-      방금 띄운 새 프로세스를 죽인다. 대기를 늘려도 소용없다 — 프로세스가 죽어 있다.
-      **후보 4개 모두 `maestro check-syntax` 통과 확인함**(문법 리스크 없음):
-      ```yaml
-      # a) 명시적 정지 후 초기화
-      - stopApp
-      - clearState
-      - launchApp
-      # b) a + 정착 대기 (race 를 직접 겨냥 — 유력)
-      - stopApp
-      - clearState
-      - waitForAnimationToEnd:
-          timeout: 3000
-      - launchApp
-      # c) killApp 변형
-      - killApp
-      - clearState
-      - launchApp
-      # d) 단일 커맨드에 stopApp 옵션
-      - launchApp:
-          clearState: true
-          stopApp: true
-      ```
-      적용 대상은 `launchApp` 사이트 **9곳**(login-negative 는 3곳).
-      ⚠️ `clearState` 순서를 바꾸는 것은 **테스트 격리 방식 변경**이므로 로컬 재검증도 필요.
-      ⚠️ **판정 기준**: 실패가 확률적(런당 0~2개)이라 1회 통과는 근거가 못 된다. **최소 3회 연속 7/7**.
-      야간 cron(KST 04:20)이 매일 데이터를 쌓으므로 재현율은 무료로 얻을 수 있다.
+- [ ] **Android CI `clearState` race — 수정 적용, 원격 CI 3회 연속 7/7 확인 후 이 항목 삭제**
+      수정 내용·로컬 검증은 2026-11-04 항목 참고. 판정 기준: 실패가 확률적이라 **최소 3회 연속 7/7**.
 - [ ] **CI 워크플로에 `paths-ignore` 추가 검토** — 현재 문서만 고쳐도 8분짜리 에뮬레이터 런이 돈다.
       단 flow·워크플로 변경은 반드시 트리거되어야 하므로 경로 목록을 신중히 정할 것.
 - [ ] **작업 브랜치와 `main` 양쪽 push 로 런이 2개 뜨는 문제** — concurrency 그룹이 `ref_name` 기준이라
@@ -84,6 +58,52 @@
       순서: ① CI race 해결 → ② 담기→장바구니 subflow 추출(Rule of Three 3번째) → ③ 템플릿 승격.
       ②를 건너뛰면 승격 후 템플릿·예시 양쪽을 고쳐야 한다.
 
+## 2026-11-04
+
+### Fixed
+
+#### ✅ Android CI `clearState` race 해결 — 초기화와 실행 사이에 대기를 둔다
+
+**배경**: 야간 회귀가 최근 30일 **7/30 성공(23%)**, 11/02~11/04 3일 연속 실패. 실패는 매번 다른 플로우에서
+`"View menu" is visible` 로 났다(2026-08-31 「원인 확정」과 같은 시그니처).
+
+**원인 재확인 — 8/31 해석 정정.** 11/04 실패 런(41743648079)의 logcat 을 7개 플로우 전부 비교했다:
+```
+00:03:54.305  Force stopping ... clear data          ← clearState(pm clear)
+00:03:55.167  Force stopping ... from pid 5974       ← launchApp 의 기본 stopApp(am force-stop)
+00:03:55.191  START SplashActivity
+00:03:55.320  Destroy timeout of remove-task, attempt to kill Task #9
+00:03:55.320  Killing 5983 ... remove task           ← 방금 띄운 프로세스
+```
+- 8/31 에는 "force-stop 34ms 뒤 실행"이 원인으로 보였지만, `Destroy timeout` 은 **pm clear 기준 약 1초 뒤**에
+  터진다(CI 7건 1.006~1.07초, 로컬 9건 1.03~1.16초). force-stop 기준이 아니다.
+- `launchApp: clearState: true` 는 pm clear → 권한 부여(약 0.9초) → 실행 순서라, 실행이 매번 이 1초 창 바로 앞에
+  걸린다. 새 액티비티가 제거 대기 중인 같은 태스크에 들어갔다가 함께 죽는다.
+- 그래서 기존 후보 a~d(정지·초기화 순서만 바꿈)는 1초 창을 피하지 못한다.
+
+**시도 1 (기각)** — `stopApp: false` 만 추가해 실행 직전 force-stop 을 없앴다.
+로컬 에뮬레이터에서 **3/7 실패, 앱 종료 3회** — 실행이 1초 창에 더 가까워져 오히려 악화.
+
+**적용** — `subflows/launch-clean.yaml` 신설, Android `launchApp` 사이트 **9곳**을 이 subflow 호출로 교체:
+```yaml
+- clearState
+- extendedWaitUntil: { visible: "__wait_for_task_cleanup__", timeout: 3000, optional: true }  # 고정 대기
+- launchApp: { stopApp: false }
+```
+- Maestro 에 sleep 이 없어 '없는 요소를 timeout 까지 기다리는' optional 대기로 구현했다.
+  실행 기록에 경고로 남지만 JUnit 은 failures 0 이다.
+- 실측: pm clear 후 정리 타임아웃 +1.03~1.16초 → 앱 실행 +6.9~7.7초. 타임아웃은 그대로 9회 나지만 죽는 프로세스가 없다.
+- 비용: 플로우 시작마다 약 6초, 런당 약 1분 증가(public 이라 러너 비용 없음).
+- iOS(`checkout_ios`)는 이 race 와 무관해 변경하지 않았다.
+
+**검증**
+- 로컬(회사 Windows, Pixel_6 에뮬레이터, Maestro 2.7.0, CI 와 같은 명령):
+  시도 1 → 3/7 실패(kill 3) / 적용 후 → **2회 연속 7/7**(kill 0, JUnit failures 0)
+- 원격 CI: 진행 중 — 결과는 다음 항목에 기록
+
+**코드 리뷰 반영**: subflow 를 Android 전용으로 명시, catalog-sort 주석 정정.
+고정 대기·`stopApp: false`·경고 로그·시간 증가는 위 실측 근거로 유지했다.
+
 ## 2026-08-31
 
 ### Changed
@@ -108,7 +128,7 @@ CI 도입 직후 Android 회귀가 **4회 실행 중 1회만 통과**했다. 실
    **효과 없음** — 실패까지의 시간만 19초→31초로 늘었다(대기는 정상 작동). 이 변경은 CI 내성
    측면에서 `assertVisible` 보다 나으므로 유지한다.
 
-#### 🔎 원인 확정 — `clearState` 태스크 정리와 새 프로세스 실행의 race (미해결)
+#### 🔎 원인 확정 — `clearState` 태스크 정리와 새 프로세스 실행의 race (미해결 → 2026-11-04 해결, 타이머 기준 정정)
 
 위 4번이 실패한 것이 결정적 단서였다. 30초를 기다려도 안 된다는 건 "느린" 게 아니라
 **기다릴 대상이 죽었다**는 뜻이다. 아티팩트의 `logs/device-logcat.txt` 에 그대로 찍혀 있다

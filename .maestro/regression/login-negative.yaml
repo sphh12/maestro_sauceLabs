@@ -15,8 +15,7 @@ tags:
 # 2-필드 폼의 표준 동치분할(둘 다 결핍 / 사용자명만 결핍 / 비밀번호만 결핍)에 대응한다.
 
 # ── 케이스 ①: 사용자명·비밀번호 둘 다 빈 값 → 제출 ──
-- launchApp:
-    clearState: true
+- runFlow: ../subflows/launch-clean.yaml   # 데이터 초기화 후 실행 (CI race 회피 — subflow 주석 참고)
 - extendedWaitUntil:
     visible: "View menu"
     timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
@@ -28,8 +27,7 @@ tags:
 - assertVisible: "Tap to login with given credentials"   # 로그인 화면에 머무름(홈으로 안 넘어감)
 
 # ── 케이스 ②: 사용자명 빈 값, 비밀번호만 입력 → 제출 ──
-- launchApp:
-    clearState: true
+- runFlow: ../subflows/launch-clean.yaml   # 데이터 초기화 후 실행 (CI race 회피 — subflow 주석 참고)
 - extendedWaitUntil:
     visible: "View menu"
     timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
@@ -45,8 +43,7 @@ tags:
 - assertVisible: "Tap to login with given credentials"
 
 # ── 케이스 ③: 사용자명만 입력, 비밀번호 빈 값 → 제출 ──
-- launchApp:
-    clearState: true
+- runFlow: ../subflows/launch-clean.yaml   # 데이터 초기화 후 실행 (CI race 회피 — subflow 주석 참고)
 - extendedWaitUntil:
     visible: "View menu"
     timeout: 30000                    # CI 콜드스타트 대비(로컬은 즉시 통과)
