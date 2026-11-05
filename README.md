@@ -1,5 +1,14 @@
 # Maestro 템플릿 프로젝트 — 구현 방향
 
+[![Android](https://github.com/sphh12/maestro_sauceLabs/actions/workflows/android-regression.yml/badge.svg)](https://github.com/sphh12/maestro_sauceLabs/actions/workflows/android-regression.yml)
+[![iOS](https://github.com/sphh12/maestro_sauceLabs/actions/workflows/ios-regression.yml/badge.svg)](https://github.com/sphh12/maestro_sauceLabs/actions/workflows/ios-regression.yml)
+
+> 배지는 기본 브랜치의 최신 CI 실행 상태다.
+>
+> 매일 Android KST 04:20 · iOS KST 04:50 데일리 회귀가 돌기 때문에 대개 그 결과를 가리킨다.
+>
+> 스케줄 실행만 따로 보려면 [Android — event:schedule](https://github.com/sphh12/maestro_sauceLabs/actions/workflows/android-regression.yml?query=event%3Aschedule) · [iOS — event:schedule](https://github.com/sphh12/maestro_sauceLabs/actions/workflows/ios-regression.yml?query=event%3Aschedule) 참고.
+
 > **이 문서의 목적**
 > 회사(Windows 11) 환경에서 정리한 **설계 결정 기록 + 작업 핸드오프** 문서입니다.
 > 하드웨어 제약으로 실제 코드 구현은 **집(macOS / Apple Silicon)** 에서 진행합니다.

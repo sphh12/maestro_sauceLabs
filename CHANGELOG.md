@@ -15,14 +15,13 @@
       단 flow·워크플로 변경은 반드시 트리거되어야 하므로 경로 목록을 신중히 정할 것.
 - [ ] **작업 브랜치와 `main` 양쪽 push 로 런이 2개 뜨는 문제** — concurrency 그룹이 `ref_name` 기준이라
       서로 취소하지 않는다. `main` 은 검증된 커밋만 fast-forward 받으므로 push 트리거에서 빼는 것이 후보.
-- [ ] **iOS CI 실패 원인 규명 (최우선)** — `checkout_ios` 가 CI 에서 `Assertion is false: "Card Number*" is visible` 로 실패.
-      배송 폼 좌표 탭 후 `To Payment` → 결제 화면 전환이 안 됨. **아티팩트에 실패 스크린샷 있음**(런 33358285987).
-      로컬은 3/3 통과하므로 CI 환경 차이(키보드 상태·스크롤 위치·타이밍) 의심. 추정 말고 스크린샷으로 확정할 것.
-- [ ] **iOS 키보드 우회 개선** — 현재 `idb` Escape 루프 + 좌표 탭에 의존. 개선안:
+- [ ] **iOS 키보드 우회 근본 개선** — 현재 `idb` Escape 루프 + 좌표 탭 + 탭 전 키보드 대기(2026-11-05)에 의존.
+      CI 실패는 대기로 해소했지만 루프와의 경쟁 자체는 남아 있다(입력란이 늘 때마다 대기를 넣어야 함). 개선안:
       (a) 실기기 또는 포커스된 Simulator 창에서 하드웨어 키보드 연결 시 우회 불필요한지 검토,
-      (b) name 없는 입력란에 접근성 id 부여 가능한지(앱측) 확인해 좌표 탭 제거,
+      (b) name 없는 입력란에 접근성 id 부여 가능한지(앱측) 확인해 좌표 탭 제거 — 외부 데모 앱이라 가능성 낮음,
       (c) CI에서 idb 루프 대체(Maestro Cloud iOS 등)
-- [ ] iOS 좌표 탭은 해상도 의존적(iPhone 17 기준) → 기기 바뀌면 재보정 필요 문서화
+- [ ] iOS 좌표 탭은 해상도 의존적(iPhone 17 기준) → 기기 바뀌면 재보정 필요 문서화.
+      `run-ios-ci.sh` 주석의 `iPhone 17(393x852)` 은 실제 402x874pt 다(CI 스크린샷 1206x2622 @3x) — 정정할 것
 
 ### 🔜 다음
 - [ ] **담기→장바구니 시퀀스 subflow 추출** — `cart-manage`·`e2e/checkout`에 중복(Task7 리뷰 발견). checkout 회귀 위험 있어 신중히
@@ -53,9 +52,63 @@
 
       **⚠️ 선행 조건: Android CI 가 연속 통과한 뒤에 할 것.** → 2026-11-04 충족(원격 CI 3회 연속 7/7).
       별도 저장소 `maestro_template` 의 Todo 「clearState 레이스 대응 이식」에 `subflows/launch-clean.yaml` 을 옮길 것.
+      iOS 예시(`examples/sauce_demo`)에는 `subflows/ios-keyboard-hidden.yaml` 과 `checkout_ios.yaml` 호출 9곳도 함께 옮길 것(2026-11-05).
       (당시 기록) 지금 승격하면 불안정한 워크플로를 다음 프로젝트로 복제하게 된다(`clearState` race 미해결).
       순서: ① CI race 해결 → ② 담기→장바구니 subflow 추출(Rule of Three 3번째) → ③ 템플릿 승격.
       ②를 건너뛰면 승격 후 템플릿·예시 양쪽을 고쳐야 한다.
+
+## 2026-11-05
+
+### Fixed
+
+#### ✅ iOS CI `checkout_ios` 실패 해결 — 탭이 소프트키보드 자판에 떨어지던 문제
+
+**배경**: iOS 야간 회귀가 최근 30일 **11/31 성공(35%)**. 실패 메시지는 대부분 `Assertion is false: "Card Number*" is visible`
+(최근 5건 중 4건), 나머지는 `"Review your order" is visible`. 로컬(Mac)은 3/3 통과해 CI 환경 차이로만 짐작하던 항목.
+
+**원인 확정 — 실패 아티팩트의 화면 구조에 남은 입력란 값**
+| 런 | 실패 시점 입력란 | 해석 |
+|---|---|---|
+| 41143533603 | City=`Seould12345`, Zip 빈칸, Country=`South Koreav` | Zip 좌표(111,664)가 자판 `d` 를 누름 → Zip 값이 City 로. To Payment 탭이 `v` 를 누름 |
+| 41250047949 | 다섯 칸 입력됨, Country=`South Koreav`, 배송 화면 그대로 | To Payment 탭이 자판 `v` 를 눌러 화면 전환 없음 |
+| 40974520975 | Zip 빈칸 → `Please provide your zip.` | Zip 탭이 자판에 떨어짐 |
+| 41942129448 (11/05 야간) | City 빈칸 → `Please provide your city.`, 주소 1줄에 이후 값이 몰림 | City 탭이 자판에 떨어짐 |
+| 41745171166 | 결제 화면 Card Number 빈칸 | 같은 현상이 결제 화면에서 발생 |
+- 백그라운드 idb Escape 루프는 키보드를 '곧' 내릴 뿐 '이미' 내려가 있다는 보장이 없다. inputText 직후 다음 탭이
+  루프보다 빠르면 키보드가 아직 떠 있어, 키보드가 덮는 화면 아래쪽(City·Zip·Country·결제 입력란·To Payment/Review Order)
+  좌표가 자판을 누른다. 찍힌 글자(`d`·`v`)가 그 좌표의 자판 위치와 맞는다.
+- (추정) CI 러너는 idb 호출마다 파이썬이 새로 떠 루프 실제 주기가 0.12초보다 훨씬 길다 — 로컬에서 드러나지 않은 이유.
+
+**수정**
+- `subflows/ios-keyboard-hidden.yaml` 신설 — ① 키보드 `delete` 키(id)가 사라질 때까지 대기(10초, 필수)
+  → ② 0.7초 안정화 → ③ 재확인. 판단 기준은 Maestro 자체 `hideKeyboard` 와 같다(`IOSDriver.isKeyboardHidden` 이 id `delete` 로 판단).
+  Maestro 는 기본 설정에서 키보드 계층을 화면 구조에 포함한다(`ViewHierarchyHandler.keyboardHierarchy`).
+  앱 화면(배송·결제)에는 id `delete` 요소가 없음을 실패 아티팩트로 확인했다.
+- `checkout_ios.yaml`: inputText 다음 탭 9곳(Address Line 1·City·Zip·Country·To Payment / Card Number·Expiration·Security Code·Review Order)
+  앞에 호출. 화면 첫 입력란 2곳(배송·결제 Full Name)은 아직 입력 전이라 키보드가 없어 생략.
+- `run_checkout_ios.sh`·`.github/scripts/run-ios-ci.sh` 주석의 "키보드를 계속 내려둔다" 가정 정정.
+
+**검증** — 원격 CI(작업 브랜치, 커밋 `8666cb3`, workflow_dispatch) **3회 연속 1/1 통과**
+| 회차 | 런 | 결과 | 플로우 | 키보드를 실제로 기다린 지점 |
+|---|---|---|---|---|
+| 1 | 41974717545 | 1/1, 12분 | 174초 | Address Line 1 앞 4.8초 |
+| 2 | 41976013675 | 1/1, 12분 | 231초 | City 앞 3.0초 |
+| 3 | 41980608841 | 1/1, 16분 | 268초 | Address Line 1 앞 3.3초 · Card Number 앞 3.3초 |
+- 나머지 대기(확인 1회당 2번)는 0.8~1.6초 — 화면 구조 1회 조회 시간, 즉 키보드가 이미 내려가 있었다.
+- 런마다 1~2곳에서 키보드가 아직 떠 있었다 = 수정 전이라면 그 탭이 자판을 눌렀을 상황. 수정 전 성공률 35% 로 우연히 3연속 통과할 확률은 약 4%.
+- 같은 커밋의 Android push 런(41974675944) 7/7 — iOS 전용 변경이라 영향 없음.
+- 비용: 확인 1회 약 2~3초, 런당 약 20~25초 증가. 3회차 진행 중 로컬 감시 스크립트가 PC 메모리 부족으로 종료돼 수동 확인으로 이어갔다(런 자체는 영향 없음).
+- 검증 후 `main` 을 fast-forward — 야간 iOS cron(KST 04:50)부터 이 수정으로 돈다.
+
+**코드 리뷰 반영**
+- 반영: 확인 시점에 키보드가 아직 안 올라온 경우와 내려가는 애니메이션 틈 → ② 안정화 + ③ 재확인 / 실행 스크립트 주석 정정 / 화면 첫 입력란 앞 확인 2곳 제거
+- 기각: 탭 자동 재시도가 자판을 누를 위험 — 실행 기록상 모든 탭이 이미 `retryIfNoChange: false`.
+  탭+입력 subflow 통합 — 대기 로직은 이미 한 파일에 있고, 묶으면 메인 flow 에서 좌표·입력값이 안 보인다.
+- 범위 밖: 근본 해결(앱 접근성 id·하드웨어 키보드 모드) → Todo 「iOS 키보드 우회 근본 개선」
+
+### Added
+- **README 에 GitHub Actions 상태 배지 추가** — 제목 아래에 Android·iOS 배지(기본 브랜치 최신 실행 상태)와
+  스케줄 실행 이력 링크. 형식은 `playwright-saucedemo` README 와 같다.
 
 ## 2026-11-04
 
@@ -128,6 +181,19 @@ logcat 상 새 앱 종료는 0회 — race 가 아니다. 스크린샷: 앱은 �
 - 수정 후 subflow: `Tap on "Wait"` → `View menu` **COMPLETED**, 다이얼로그 0개
 - 다이얼로그 없는 평상시 전체 실행: **7/7**(Wait 탭 0회 — 조건 블록 정상 건너뜀, 새 앱 종료 0회)
 - 참고: 런처를 `kill -CONT` 로 되살리면 다이얼로그가 저절로 닫힌다. CI 에서 3분 넘게 남은 것은 런처가 그동안 회복하지 못했다는 뜻.
+
+**실전 확인 — 2026-11-05 야간 런 [41941289719](https://github.com/sphh12/maestro_sauceLabs/actions/runs/41941289719) (main `46b3c74`, schedule)**
+수정 후 첫 야간 런에서 이 다이얼로그가 **실제로 떴고, 조건 블록이 닫아 7/7 통과**했다(전날 수동 런 41788637194 에서는 안 떠서 블록이 SKIPPED 였다).
+```
+00:28:42.323  Run flow when ".*isn.t responding" is visible RUNNING
+00:28:43.418  Tapping on element: text=Wait, resource-id=android:id/aerr_wait
+00:28:45.722  Window{... Application Not Responding: com.google.android.apps.nexuslauncher}: Setting back callback null   ← 다이얼로그 제거(logcat)
+00:28:48.154  Run flow when ".*isn.t responding" is visible COMPLETED
+              assertVisible "View menu" COMPLETED (234ms)
+```
+- 조건 블록 실행은 app-launch 1회뿐, 이후 6개 플로우는 SKIPPED — 부팅 직후 1회성이라는 진단과 일치.
+- 수정이 없었다면 41783723860 처럼 app-launch 부터 전멸했을 상황이다.
+- 같은 런에서 race 쪽도 정리 타임아웃 8회 / 새 앱 종료 0회. 이 실행은 예약(04:20)보다 약 5시간 늦게 시작됐다(GitHub 예약 실행 지연).
 
 ## 2026-08-31
 
