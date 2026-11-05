@@ -7,8 +7,10 @@
 #   'To Payment'/'Review Order' 버튼이 소프트키보드 뒤에 고정되어 가려진다.
 #   헤드리스 시뮬레이터에선 하드웨어 키보드 연결도 적용되지 않는다.
 #   → idb 로 HID Escape(keycode 41)를 백그라운드에서 반복 전송해
-#     키보드를 계속 내려둔 상태로 Maestro flow를 실행한다.
+#     키보드를 내리면서 Maestro flow를 실행한다.
 #   (Maestro inputText 는 키보드가 내려가 있어도 텍스트를 입력함)
+#   ⚠️ 루프는 키보드를 '곧' 내릴 뿐, 탭 순간에 '이미' 내려가 있다는 보장은 없다.
+#     flow 쪽에서 탭 전에 subflows/ios-keyboard-hidden.yaml 로 확인해야 한다(CHANGELOG 2026-11-05).
 #
 #  사전 준비:
 #   - idb_companion:  brew install facebook/fb/idb-companion
@@ -31,7 +33,7 @@ idb_cmd() { python3.10 -c "from idb.cli.main import main; import sys; sys.argv=[
 # 이 디바이스에 companion 연결
 idb_cmd connect "$UDID" >/dev/null 2>&1
 
-# 백그라운드 Escape 루프 시작 (키보드 계속 내림)
+# 백그라운드 Escape 루프 시작 (떠 오른 키보드를 내림 — 탭 시점 동기화는 flow 가 담당)
 (
   while true; do
     idb_cmd ui key 41 --udid "$UDID" >/dev/null 2>&1

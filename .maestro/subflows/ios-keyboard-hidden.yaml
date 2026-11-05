@@ -1,0 +1,38 @@
+appId: com.saucelabs.mydemo.app.ios
+---
+# 재사용 조각(iOS 전용): 소프트키보드가 내려갈 때까지 기다린다.
+# inputText 다음에 오는 탭(입력란·버튼) '직전'에 호출한다. 화면의 첫 입력 전에는 키보드가 없어 필요 없다.
+#
+# 왜 필요한가 — iOS CI 실패의 원인 (CHANGELOG 2026-11-05):
+#   키보드는 백그라운드 idb Escape 루프가 내리는데, inputText 직후 다음 탭까지의 간격이
+#   루프 주기보다 짧으면 키보드가 아직 떠 있다. 그 상태에서 화면 아래쪽(City·Zip·Country,
+#   To Payment, 결제 입력란)을 탭하면 탭이 키보드 자판에 떨어져 글자가 하나 찍히고,
+#   이후 입력이 엉뚱한 칸으로 들어간다. 실측: City='Seould12345'(Zip 좌표 → 'd' 키),
+#   Country='South Koreav'(To Payment → 'v' 키) → 검증 오류로 결제 화면 미진입.
+#
+# 판단 기준: 키보드 '지우기' 키(id "delete")가 화면 구조에 있으면 키보드가 떠 있는 것이다.
+#   Maestro 자체 hideKeyboard 가 키보드 표시 여부를 판단하는 기준과 같다(IOSDriver.isKeyboardHidden).
+#   앱 화면(배송·결제)에는 id 'delete' 요소가 없음을 실패 아티팩트로 확인했다.
+# optional 이 아니다 — 10초 안에 안 내려가면 Escape 루프 이상이므로, 자판을 눌러 엉뚱한
+#   값을 넣고 나중에 실패하는 대신 여기서 원인이 드러나게 멈춘다.
+
+# ① 키보드가 떠 있으면 내려갈 때까지 기다린다
+- extendedWaitUntil:
+    notVisible:
+      id: "delete"
+    timeout: 10000
+
+# ② 잠깐 둔다(약 0.7초) — 두 가지 틈을 메운다.
+#    - 'delete' 는 내려가는 애니메이션 시작 시점에 사라지므로, 자판이 아직 그려져 있을 수 있다
+#    - 확인 시점에 키보드가 '아직 안 올라온' 상태였을 수 있다(없음 = 내려감 / 아직 안 뜸 구분 불가)
+#    sleep 커맨드가 없어 존재하지 않는 요소를 timeout 까지 기다린다(optional → 경고만 남김).
+- extendedWaitUntil:
+    visible: "__wait_for_keyboard_settle__"
+    timeout: 700
+    optional: true
+
+# ③ 그 사이 키보드가 (다시) 올라왔으면 내려갈 때까지 한 번 더 기다린다
+- extendedWaitUntil:
+    notVisible:
+      id: "delete"
+    timeout: 10000

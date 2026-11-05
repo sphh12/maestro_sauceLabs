@@ -80,7 +80,9 @@ echo "::endgroup::"
 
 echo "::group::idb 준비 (소프트키보드 우회용)"
 # 이 앱은 키보드를 내리는 표준 동작이 없고 'To Payment'/'Review Order' 버튼이 키보드 뒤에 고정된다.
-# Maestro 의 hideKeyboard 로도 안 닫혀서, HID Escape(keycode 41) 를 반복 전송해 계속 내려둔다.
+# Maestro 의 hideKeyboard 로도 안 닫혀서, HID Escape(keycode 41) 를 반복 전송해 내린다.
+# ⚠️ 루프는 '곧' 내릴 뿐 탭 순간에 '이미' 내려가 있다는 보장이 없다(idb 호출마다 파이썬이 새로 떠
+#    실제 주기는 0.12초보다 길다). 탭 전 동기화는 flow 의 subflows/ios-keyboard-hidden.yaml 이 맡는다.
 brew tap facebook/fb >/dev/null
 # 최신 Homebrew 는 서드파티 tap 의 formula 를 기본적으로 거부한다(실측):
 #   "Refusing to load formula facebook/fb/idb-companion from untrusted tap facebook/fb."

@@ -14,7 +14,11 @@ tags:
 #   - 해결: 백그라운드로 idb Escape(HID keycode 41)를 반복 전송해 키보드를 계속 내려둔다.
 #     → 반드시 run_checkout_ios.sh 로 실행(=idb Escape 루프 + 이 flow 동시 구동).
 #   - 텍스트 입력은 Maestro inputText 사용(깨끗함). idb ui text 는 한글 IME로 깨지므로 금지.
-#   - 입력란은 name 없는 TextField라 좌표(point)로 탭한다(키보드가 내려가 있어 좌표가 안정적).
+#   - 입력란은 name 없는 TextField라 좌표(point)로 탭한다.
+#   - ⚠️ Escape 루프는 '곧' 내릴 뿐 '이미' 내려가 있다는 보장이 없다. inputText 직후 바로 탭하면
+#     키보드가 아직 떠 있어 탭이 자판에 떨어진다(실측 CI 실패 원인, CHANGELOG 2026-11-05).
+#     → inputText 다음에 오는 탭(입력란·버튼) 직전마다 subflows/ios-keyboard-hidden.yaml 로
+#       키보드가 내려간 것을 확인한다. 화면의 첫 입력란은 아직 입력 전이라 키보드가 없어 생략한다.
 # ══════════════════════════════════════════════════════════════════
 
 # ── [단계 1] 상품을 장바구니에 담기 ────────────────────────────────
@@ -55,23 +59,29 @@ tags:
 # 로그인 후 배송 주소(ShippingAddress) 화면으로 진행됨
 - assertVisible:
     id: "ShippingAddress-screen"
-# name 없는 TextField → 화면 좌표로 탭(키보드는 idb Escape 루프가 계속 내려둠)
+# name 없는 TextField → 화면 좌표로 탭(키보드는 idb Escape 루프가 내린다)
+# 입력 뒤 탭 직전마다 키보드가 내려갔는지 확인한다 — 떠 있으면 아래쪽 좌표가 자판에 떨어진다.
 - tapOn:
-    point: "205,319"                    # Full Name*
+    point: "205,319"                    # Full Name* (화면 첫 입력 — 키보드 없음)
 - inputText: "John Doe"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "205,404"                    # Address Line 1*
 - inputText: "123 Main St"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "111,576"                    # City*
 - inputText: "Seoul"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "111,664"                    # Zip Code*
 - inputText: "12345"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "299,664"                    # Country*
 - inputText: "South Korea"
-# ⚠️ 'To Payment'은 키보드 뒤 고정 버튼 → id가 아닌 text 로 탭(키보드는 내려가 있음)
+# ⚠️ 'To Payment'은 키보드 뒤 고정 버튼 → id가 아닌 text 로 탭(키보드가 내려간 뒤)
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     text: "To Payment"
 
@@ -81,18 +91,22 @@ tags:
 # ⚠️ '청구지=배송지' 체크박스는 기본값이 이미 체크(selected=true)라 건드리지 않는다.
 #    (탭하면 오히려 해제되어 청구지 주소 폼이 뜨고 'full name' 검증 에러 발생)
 - tapOn:
-    point: "205,406"                    # Full Name*(카드 소유자명)
+    point: "205,406"                    # Full Name*(카드 소유자명, 화면 첫 입력 — 키보드 없음)
 - inputText: "John Doe"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "205,499"                    # Card Number*
 - inputText: "4111111111111111"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "111,584"                    # Expiration Date* (MMYY → 08/26 자동 포맷)
 - inputText: "0826"
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     point: "299,584"                    # Security Code*
 - inputText: "123"
-# ⚠️ 'Review Order'도 키보드 뒤 고정 버튼 → text 로 탭
+# ⚠️ 'Review Order'도 키보드 뒤 고정 버튼 → text 로 탭(키보드가 내려간 뒤)
+- runFlow: ../subflows/ios-keyboard-hidden.yaml
 - tapOn:
     text: "Review Order"
 
