@@ -77,8 +77,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: "maestro-report-ios"
+          # ios-esc-loop.log — 키보드 우회 Escape 루프의 호출별 기록(.github/scripts/ios_esc_loop.py)
           path: |
             report-ios.xml
             artifacts-ios/
+            ios-esc-loop.log
           retention-days: 30
           if-no-files-found: warn

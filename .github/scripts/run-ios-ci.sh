@@ -112,10 +112,37 @@ echo "::endgroup::"
 
 echo "::group::iOS 플로우 실행"
 # Escape 루프를 백그라운드로 띄운 뒤 Maestro 를 돌리고, 끝나면 반드시 정리한다.
-( while true; do idb ui key 41 --udid "$IOS_UDID" >/dev/null 2>&1; sleep 0.12; done ) &
+# 루프는 idb 호출마다 시각·소요·결과를 ESC_LOG 에 남긴다(아티팩트 업로드 대상).
+#   키보드가 10초 넘게 안 내려가는 실패의 원인(루프 정지 vs 키보드 무반응)을 가르는 근거다 — ios_esc_loop.py 참고.
+#   예전 쉘 루프는 출력을 /dev/null 로 버려 실패해도 근거가 남지 않았다.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ESC_LOG="ios-esc-loop.log"
+python3 "$SCRIPT_DIR/ios_esc_loop.py" "$IOS_UDID" "$ESC_LOG" &
 ESC_PID=$!
-cleanup() { kill "$ESC_PID" 2>/dev/null || true; }
+cleanup() {
+  # SIGTERM 을 받으면 루프가 진행 중인 호출을 끊고 요약을 쓴 뒤 끝난다.
+  # 끝날 때까지 기다려야 요약이 잘리지 않고, 다음 업로드 스텝이 완성된 로그를 가져간다.
+  # 단 무한정 기다리지 않는다(최대 10초 뒤 강제 종료) — 여기서 막히면 job timeout(60분)까지 가서
+  # '취소'로 처리되고, 업로드 스텝(!cancelled())이 건너뛰어져 리포트까지 사라진다.
+  # (EXIT trap 안이라 실패해도 스크립트 종료 코드 = Maestro 결과가 바뀌지 않게 || true)
+  # kill -0 로 생존을 폴링하지 않고 wait 로 직접 기다린다 — 끝났어도 회수 전이면 kill -0 이 '살아 있음'으로 답해
+  # 늘 상한까지 기다리게 된다(로컬 실측). 상한은 따로 띄운 감시 프로세스가 kill -9 로 건다.
+  kill "$ESC_PID" 2>/dev/null || true
+  ( sleep 10; kill -9 "$ESC_PID" 2>/dev/null ) &
+  local watchdog=$!
+  wait "$ESC_PID" 2>/dev/null || true
+  kill "$watchdog" 2>/dev/null || true
+}
 trap cleanup EXIT
+
+# 루프가 시작 직후 죽었으면(경로·import 오류 등) Maestro 가 키보드 우회 없이 돌아
+# 'To Payment' 를 못 찾는 '앱 회귀'처럼 보이는 실패가 난다(위 idb 키 전송 확인이 막으려던 상황). 여기서 멈춘다.
+sleep 2
+if ! kill -0 "$ESC_PID" 2>/dev/null; then
+  echo "Escape 루프가 시작 직후 종료됐다 — 키보드 우회가 동작하지 않으므로 중단한다."
+  cat "$ESC_LOG" 2>/dev/null || true
+  exit 1
+fi
 
 set +e
 maestro --device "$IOS_UDID" test \
