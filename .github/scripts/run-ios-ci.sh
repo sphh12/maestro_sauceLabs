@@ -127,13 +127,14 @@ cleanup() {
   # (EXIT trap 안이라 실패해도 스크립트 종료 코드 = Maestro 결과가 바뀌지 않게 || true)
   # kill -0 로 생존을 폴링하지 않고 wait 로 직접 기다린다 — 끝났어도 회수 전이면 kill -0 이 '살아 있음'으로 답해
   # 늘 상한까지 기다리게 된다(로컬 실측). 상한은 따로 띄운 감시 프로세스가 kill -9 로 건다.
-  # 감시 프로세스의 입출력은 /dev/null 로 끊는다 — 감시 프로세스를 죽여도 그 안의 sleep 은 남는데,
+  # 감시 프로세스의 출력은 /dev/null 로 끊는다 — 감시 프로세스를 죽여도 그 안의 sleep 은 남는데,
   # 그 sleep 이 스텝 출력 파이프를 붙잡으면 러너가 다음 스텝을 약 5초 늦게 시작한다(검증 런 42576946492 실측).
+  # 남은 sleep 은 /dev/null 만 쥐므로 무해하다. sleep 만 따로 죽이면(pkill) 서브셸이 다음 명령으로 넘어가
+  # 이미 회수된 PID 에 kill -9 를 보낼 수 있어(코드 리뷰), '&&' 로 묶어 sleep 이 끝까지 잔 경우에만 kill 하게 한다.
   kill "$ESC_PID" 2>/dev/null || true
-  ( sleep 10; kill -9 "$ESC_PID" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+  ( sleep 10 && kill -9 "$ESC_PID" ) >/dev/null 2>&1 &
   local watchdog=$!
   wait "$ESC_PID" 2>/dev/null || true
-  pkill -P "$watchdog" 2>/dev/null || true   # 감시 프로세스 안의 sleep 까지 정리
   kill "$watchdog" 2>/dev/null || true
 }
 trap cleanup EXIT
