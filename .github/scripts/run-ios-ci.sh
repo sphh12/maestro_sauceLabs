@@ -113,7 +113,7 @@ echo "::endgroup::"
 echo "::group::iOS 플로우 실행"
 # Escape 루프를 백그라운드로 띄운 뒤 Maestro 를 돌리고, 끝나면 반드시 정리한다.
 # 루프는 idb 호출마다 시각·소요·결과를 ESC_LOG 에 남긴다(아티팩트 업로드 대상).
-#   키보드가 10초 넘게 안 내려가는 실패의 원인(루프 정지 vs 키보드 무반응)을 가르는 근거다 — ios_esc_loop.py 참고.
+#   키보드가 대기 상한 넘게 안 내려가는 실패의 원인(루프 정지 vs 키보드 무반응)을 가르는 근거다 — ios_esc_loop.py 참고.
 #   예전 쉘 루프는 출력을 /dev/null 로 버려 실패해도 근거가 남지 않았다.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ESC_LOG="ios-esc-loop.log"
@@ -127,10 +127,13 @@ cleanup() {
   # (EXIT trap 안이라 실패해도 스크립트 종료 코드 = Maestro 결과가 바뀌지 않게 || true)
   # kill -0 로 생존을 폴링하지 않고 wait 로 직접 기다린다 — 끝났어도 회수 전이면 kill -0 이 '살아 있음'으로 답해
   # 늘 상한까지 기다리게 된다(로컬 실측). 상한은 따로 띄운 감시 프로세스가 kill -9 로 건다.
+  # 감시 프로세스의 입출력은 /dev/null 로 끊는다 — 감시 프로세스를 죽여도 그 안의 sleep 은 남는데,
+  # 그 sleep 이 스텝 출력 파이프를 붙잡으면 러너가 다음 스텝을 약 5초 늦게 시작한다(검증 런 42576946492 실측).
   kill "$ESC_PID" 2>/dev/null || true
-  ( sleep 10; kill -9 "$ESC_PID" 2>/dev/null ) &
+  ( sleep 10; kill -9 "$ESC_PID" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
   local watchdog=$!
   wait "$ESC_PID" 2>/dev/null || true
+  pkill -P "$watchdog" 2>/dev/null || true   # 감시 프로세스 안의 sleep 까지 정리
   kill "$watchdog" 2>/dev/null || true
 }
 trap cleanup EXIT

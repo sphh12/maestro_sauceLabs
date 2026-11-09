@@ -13,14 +13,17 @@ appId: com.saucelabs.mydemo.app.ios
 # 판단 기준: 키보드 '지우기' 키(id "delete")가 화면 구조에 있으면 키보드가 떠 있는 것이다.
 #   Maestro 자체 hideKeyboard 가 키보드 표시 여부를 판단하는 기준과 같다(IOSDriver.isKeyboardHidden).
 #   앱 화면(배송·결제)에는 id 'delete' 요소가 없음을 실패 아티팩트로 확인했다.
-# optional 이 아니다 — 10초 안에 안 내려가면 Escape 루프 이상이므로, 자판을 눌러 엉뚱한
+# optional 이 아니다 — 30초 안에 안 내려가면 Escape 루프 이상이므로, 자판을 눌러 엉뚱한
 #   값을 넣고 나중에 실패하는 대신 여기서 원인이 드러나게 멈춘다.
+# 대기 상한 30초 (2026-11-09, 10초에서 늘림) — CI 러너에서 idb Escape 호출 1회가 최대 20.9초 막히는 것을 실측했다
+#   (런 42576946492 의 ios-esc-loop.log). 키보드는 막혔던 Escape 가 도착한 직후 내려갔다. 10초 대기는 이 막힘과 겹치면
+#   실패했다(11-05·11-07 잔여 실패). 키보드 대기는 앱 동작이 아니라 테스트 우회 장치라, 늘려도 회귀 감지력은 그대로다.
 
 # ① 키보드가 떠 있으면 내려갈 때까지 기다린다
 - extendedWaitUntil:
     notVisible:
       id: "delete"
-    timeout: 10000
+    timeout: 30000
 
 # ② 잠깐 둔다(약 0.7초) — 두 가지 틈을 메운다.
 #    - 'delete' 는 내려가는 애니메이션 시작 시점에 사라지므로, 자판이 아직 그려져 있을 수 있다
@@ -35,4 +38,4 @@ appId: com.saucelabs.mydemo.app.ios
 - extendedWaitUntil:
     notVisible:
       id: "delete"
-    timeout: 10000
+    timeout: 30000

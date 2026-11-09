@@ -5,7 +5,7 @@ run-ios-ci.sh 가 백그라운드로 띄우고, Maestro 가 끝나면 SIGTERM �
 멈출 때 요약(호출 수·실패·소요·Escape 공백 구간)을 로그 끝과 표준출력(잡 로그)에 남긴다.
 
 왜 기록하나 (CHANGELOG Todo 「iOS 잔여 실패」):
-  탭 전 키보드 대기(subflows/ios-keyboard-hidden.yaml)를 넣은 뒤에도 키보드가 10초 넘게 안 내려가
+  탭 전 키보드 대기(subflows/ios-keyboard-hidden.yaml, 당시 상한 10초)를 넣은 뒤에도 키보드가 10초 넘게 안 내려가
   `id: delete is not visible` 로 실패하는 런이 남았다(2026-11-05 런 41977332181, 11-07 야간 42423750945).
   실패 아티팩트(스크린샷·화면 구조·시뮬레이터 로그)로는 두 가설을 가를 수 없었다.
     (가) 루프가 멈췄다 — idb 호출이 오래 걸리거나 실패해서 Escape 가 안 나갔다
@@ -29,9 +29,9 @@ from datetime import datetime, timezone
 KEY_ESCAPE = "41"  # HID usage id — Keyboard ESCAPE
 INTERVAL = 0.12    # 호출 사이 쉬는 시간(초). 예전 쉘 루프와 같은 값
 SLOW_CALL = 2.0    # 이보다 오래 걸린 호출 수를 요약에 따로 센다
-GAP_REPORT = 5.0   # Escape 공백 보고 기준(초) = 키보드 대기 timeout(10초)의 절반.
-                   # 대기 10초 동안 이보다 짧은 간격으로 Escape 가 계속 나갔는데도 실패했다면 키보드가 반응하지 않은 것
-GAP_SHOW = 10      # 요약에 보여줄 공백 수(긴 순). 실패 구간은 10초 이상이라 항상 포함된다
+GAP_REPORT = 5.0   # Escape 공백 보고 기준(초). 정상 호출(소요 중앙값 0.35초, 2026-11-09 검증 런 실측)보다 훨씬 긴 막힘만 고른다.
+                   # 키보드 대기 내내 이보다 짧은 간격으로 Escape 가 나갔는데도 실패했다면 키보드가 반응하지 않은 것
+GAP_SHOW = 10      # 요약에 보여줄 공백 수(긴 순). 실패 구간은 대기 상한 이상으로 길어 항상 포함된다
 
 
 class Stop(BaseException):
@@ -127,7 +127,7 @@ def summarize(calls, end=None):
         lines.append(f"Escape 공백 {GAP_REPORT:.0f}s 초과 {len(gaps)}곳{more} — 키보드 대기 실패 구간과 겹치면 가설 (가) 루프 정지:")
         lines += [f"  {stamp(to_epoch(a))} ~ {stamp(to_epoch(b))} ({b - a:.1f}s)" for a, b in shown]
     else:
-        lines.append(f"Escape 공백 {GAP_REPORT:.0f}s 초과 없음 — 이 런에서 키보드 대기(10초)가 실패했다면 가설 (나) 키보드 무반응")
+        lines.append(f"Escape 공백 {GAP_REPORT:.0f}s 초과 없음 — 이 런에서 키보드 대기가 실패했다면 가설 (나) 키보드 무반응")
     return lines
 
 
