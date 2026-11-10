@@ -124,9 +124,10 @@ def summarize(calls, end=None):
         # 긴 순으로 GAP_SHOW 개를 골라 시간순으로 보여준다(앞에서부터 자르면 끝의 실패 구간이 빠질 수 있다)
         shown = sorted(sorted(gaps, key=lambda g: g[1] - g[0], reverse=True)[:GAP_SHOW])
         more = f" (긴 순 {GAP_SHOW}곳만)" if len(gaps) > GAP_SHOW else ""
-        # 판정 기준: 공백이 실패한 대기 구간을 '덮어야' (가)다. 짧은 공백이 겹치기만 한 것은 (가)의 근거가 아니다
+        # 판정 기준: 공백이 실패한 대기 구간을 '덮어야' (가)다. 짧은 공백이 겹치기만 한 것은 (가)의 근거가 아니다.
+        # 대기 상한 값은 여기 적지 않는다 — subflows/ios-keyboard-hidden.yaml 의 timeout 과 따로 놀게 된다(10→30→60초로 바뀌어 왔다)
         lines.append(f"Escape 공백 {GAP_REPORT:.0f}s 초과 {len(gaps)}곳{more} — 키보드 대기가 실패했다면: 공백이 실패한 대기 구간"
-                     f"(상한 30초)을 거의 덮으면 가설 (가) 루프 정지, 짧게 겹치기만 하면 가설 (나) 키보드 무반응:")
+                     "(commands.json 의 실패 스텝 시작~종료)을 거의 덮으면 가설 (가) 루프 정지, 짧게 겹치기만 하면 가설 (나) 키보드 무반응:")
         lines += [f"  {stamp(to_epoch(a))} ~ {stamp(to_epoch(b))} ({b - a:.1f}s)" for a, b in shown]
     else:
         lines.append(f"Escape 공백 {GAP_REPORT:.0f}s 초과 없음 — 이 런에서 키보드 대기가 실패했다면 가설 (나) 키보드 무반응")
